@@ -577,3 +577,47 @@ mydaily2 <- function(datetime_update = Sys.time(), step = c(1:6),
   id0 <- sort(sapply(unique(dat$sheet_name), function(x) as.numeric(strsplit(x, split = "_")[[1]][1])))
   with(subset(dat, sheet_name == last(names(id0))), table(date_report_final, sheet_name, useNA = "ifany"))
 }
+
+
+get_xn_file_latest <- function(path = file.path("data", "HCDC", "database", "testing", "tatca"), type = c("tong", "chitiet")) {
+  if (length(type) == 2) {stop("Please select type of lab data")}
+  require(dplyr)
+  tmp_files <- list.files(path = path, pattern = paste0(type, "_"), full.names = TRUE)
+  tmp_files2 <- basename(tmp_files)
+  return(data.frame(
+    file_name = tmp_files,
+    real_name = sapply(tmp_files2, function(x) {
+      return(paste(strsplit(gsub(pattern = ".xlsx", replacement = "", x = x), split = "_")[[1]][1:2], collapse = "_"))
+    }),
+    mtime = sapply(tmp_files, function(x) file.info(x)$mtime)
+  ) %>%
+    group_by(real_name) %>%
+    arrange(desc(mtime)) %>%
+    slice(1) %>%
+    ungroup())
+}
+
+get_ma <- function(data, datevar = "date_report_final", t = 7, type = c("mean", "sum")) {
+  require(data.table)
+  require(tidyverse)
+  if (length(type) > 1) type <- "mean"
+
+  tmp0 <- as.data.frame(data)
+  tmp <- tmp0 %>%
+    group_by(across({{ datevar }})) %>%
+    summarise(nob = n(),
+              .groups = "drop")
+  names(tmp) <- c("date", "nob")
+  tmp0 <- data.frame(date = seq(from = min(tmp$date), to = max(tmp$date), by = 1))
+
+  output <- merge(tmp, tmp0, by = c("date"), all.y = TRUE) %>%
+    mutate(nob = ifelse(is.na(nob), 0, nob))
+
+  if (type == "mean") {
+    output$ma <- frollmean(x = output$nob, n = t, align = "right")
+  } else {
+    output$ma <- frollsum(x = output$nob, n = t, align = "right")
+  }
+
+  return(output)
+}
