@@ -832,7 +832,8 @@ saveRDS(covid, file.path(data_path, "save", "covid.rds"))
 
 date_start <- ymd("2021-04-27") # ngay bat dau
 datetime_update <- ymd("2021-10-28") # ngay ket thuc
-timestamp <- gsub(pattern = "-|:| |+", replacement = "", x = Sys.time())
+#timestamp <- gsub(pattern = "-|:| |+", replacement = "", x = Sys.time())
+timestamp <- "20211101055217"
 
 ### calculate Rt
 covid <- readRDS(file.path(data_path, "save", "covid.rds")) %>%
@@ -883,7 +884,9 @@ epinow_pcr_est <- epinow(
   delays = delay_opts(incubation_period, reporting_delay),
   return_output = TRUE,
   verbose = TRUE,
-  horizon = 14,
+  rt = NULL, backcalc = backcalc_opts(),
+  obs = obs_opts(scale = list(mean = 0.4, sd = 0.05)),
+  horizon = 0,
   stan = stan_opts(samples = 2000, chains = 4, cores = 4)
 )
 
@@ -908,7 +911,9 @@ epinow_f0_est <- epinow(
   delays = delay_opts(incubation_period, reporting_delay),
   return_output = TRUE,
   verbose = TRUE,
-  horizon = 14,
+  rt = NULL, backcalc = backcalc_opts(),
+  obs = obs_opts(scale = list(mean = 0.4, sd = 0.05)),
+  horizon = 0,
   stan = stan_opts(samples = 2000, chains = 4, cores = 4)
 )
 
@@ -933,7 +938,9 @@ epinow_death_est <- epinow(
   delays = delay_opts(incubation_period, reporting_delay, pos2death_delay),
   return_output = TRUE,
   verbose = TRUE,
-  horizon = 14,
+  rt = NULL, backcalc = backcalc_opts(),
+  obs = obs_opts(scale = list(mean = 0.4, sd = 0.05)),
+  horizon = 0,
   stan = stan_opts(samples = 2000, chains = 4, cores = 4)
 )
 
@@ -958,7 +965,9 @@ epinow_hos_est <- epinow(
   delays = delay_opts(incubation_period, reporting_delay, pos2hos_delay),
   return_output = TRUE,
   verbose = TRUE,
-  horizon = 14,
+  rt = NULL, backcalc = backcalc_opts(),
+  obs = obs_opts(scale = list(mean = 0.4, sd = 0.05)),
+  horizon = 0,
   stan = stan_opts(samples = 2000, chains = 4, cores = 4)
 )
 #saveRDS(epinow_tp_est, file = file.path("data", "HCDC", "database", "derived", paste0("epinow_tp_", timestamp, ".rds")))
@@ -977,4 +986,226 @@ epinow_hos_est_sum <- rbind(
 )
 save(epinow_hos_est, epinow_hos_sum, epinow_hos_est_sum, file = file.path(data_path, "derived", paste0("epinow_hos_", timestamp, ".Rdata")))
 
+## chuyen len
+epinow_refer_est <- epinow(
+  reported_cases = transmute(covid, date = date, confirm = doh_n_chuyenlen),
+  generation_time = generation_time,
+  delays = delay_opts(incubation_period, reporting_delay, pos2hos_delay),
+  return_output = TRUE,
+  verbose = TRUE,
+  rt = NULL, backcalc = backcalc_opts(),
+  obs = obs_opts(scale = list(mean = 0.4, sd = 0.05)),
+  horizon = 0,
+  stan = stan_opts(samples = 2000, chains = 4, cores = 4)
+)
+#saveRDS(epinow_tp_est, file = file.path("data", "HCDC", "database", "derived", paste0("epinow_tp_", timestamp, ".rds")))
 
+epinow_refer_sum <- epinow_refer_est$summary
+epinow_refer_est$measure <- c("Số ca mới mắc bệnh ngày hôm qua",
+                            "Khuynh hướng thay đổi số ca mỗi ngày",
+                            "Hệ số lây nhiễm hiệu quả",
+                            "Tốc độ tăng trưởng của dịch",
+                            "Thời gian tăng gấp đôi/giảm một nửa (ngày)")
+epinow_refer_est_sum <- rbind(
+  subset(epinow_refer_est$estimates$summarised, variable == "R"),
+  subset(epinow_refer_est$estimates$summarised, variable == "reported_cases"),
+  subset(epinow_refer_est$estimates$summarised, variable == "infections"),
+  subset(epinow_refer_est$estimates$summarised, variable == "growth_rate")
+)
+save(epinow_refer_est, epinow_refer_sum, epinow_refer_est_sum, file = file.path(data_path, "derived", paste0("epinow_refer_", timestamp, ".Rdata")))
+
+
+# plot --------------------------------------------------------------------
+
+timestamp <- "20211101055217"
+date_start <- ymd("2021-04-27") # ngay bat dau
+datetime_update <- ymd("2021-10-28") # ngay ket thuc
+
+## load Rt
+load(file.path(data_path, "derived", paste0("epinow_pcr_", timestamp, ".Rdata")))
+load(file.path(data_path, "derived", paste0("epinow_f0_", timestamp, ".Rdata")))
+load(file.path(data_path, "derived", paste0("epinow_death_", timestamp, ".Rdata")))
+load(file.path(data_path, "derived", paste0("epinow_hos_", timestamp, ".Rdata")))
+load(file.path(data_path, "derived", paste0("epinow_refer_", timestamp, ".Rdata")))
+
+estimate <- rbind(
+  epinow_pcr_est_sum %>%
+    filter(variable %in% c("R", "infections") & type %in% c("estimate", "estimate based on partial data")) %>%
+    dplyr::select(date, variable, median, lower_90, upper_90) %>%
+    mutate(data = "pcr"),
+  epinow_f0_est_sum %>%
+    filter(variable %in% c("R", "infections") & type %in% c("estimate", "estimate based on partial data")) %>%
+    dplyr::select(date, variable, median, lower_90, upper_90) %>%
+    mutate(data = "f0"),
+  epinow_hos_est_sum %>%
+    filter(variable %in% c("R", "infections") & type %in% c("estimate", "estimate based on partial data")) %>%
+    dplyr::select(date, variable, median, lower_90, upper_90) %>%
+    mutate(data = "hos"),
+  epinow_death_est_sum %>%
+    filter(variable %in% c("R", "infections") & type %in% c("estimate", "estimate based on partial data")) %>%
+    dplyr::select(date, variable, median, lower_90, upper_90) %>%
+    mutate(data = "death"),
+  epinow_refer_est_sum %>%
+    filter(variable %in% c("R", "infections") & type %in% c("estimate", "estimate based on partial data")) %>%
+    dplyr::select(date, variable, median, lower_90, upper_90) %>%
+    mutate(data = "refer")
+)
+
+### calculate Rt
+covid <- readRDS(file.path(data_path, "save", "covid.rds")) %>%
+  filter(date >= date_start & date <= datetime_update)
+
+### plot f0
+
+ggplot(data = covid, aes(x = date)) +
+  geom_line(aes(y = hcdc_n_capcr)) +
+  geom_line(aes(y = hcdc_n_cartest), col = "grey") +
+  geom_line(aes(y = hcdc_n_ca), col = "red") +
+  scale_x_date(breaks = "1 week") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90))
+
+ggplot(data = covid, aes(x = date)) +
+  geom_line(aes(y = doh_n_tuvong)) +
+  geom_line(aes(y = doh_n_chuyenden), col = "grey") +
+  scale_x_date(breaks = "1 week") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90))
+
+plotdat <- covid %>%
+  select(date, hcdc_n_capcr, hcdc_n_ca, doh_n_tuvong, doh_n_chuyenden, doh_n_chuyenlen) %>%
+  pivot_longer(cols = -date,
+               names_to = "indicator",
+               values_to = "value") %>%
+  mutate(indicator = )
+
+ggplot(data = plotdat, aes(x = date, y = value)) +
+  geom_line() +
+  scale_x_date(breaks = "1 week") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90)) +
+  facet_grid(indicator ~ ., scales = "free_y")
+
+library(ggplot2)
+library(scales)
+library(patchwork)
+
+p1 <- ggplot(data = covid, aes(x = date)) +
+  annotate(geom = "rect",
+           xmin = date_start, xmax = date_parse("2021-07-07"),
+           ymin = -Inf, ymax = Inf, fill = "grey90") +
+  annotate(geom = "rect",
+           xmin = date_parse("2021-08-23"), xmax = date_parse("2021-09-30"),
+           ymin = -Inf, ymax = Inf, fill = "grey90") +
+  geom_bar(aes(y = hcdc_n_ca), stat = "identity", fill = "#9ecae1", width = 1) +
+  geom_line(data = subset(estimate, data == "f0" & variable == "infections"), aes(y = median * (15000/33449)), size = 0.5, col = "#31a354", alpha = 0.5) +
+  geom_ribbon(data = subset(estimate, data == "f0" & variable == "infections"), aes(x = date, ymin = lower_90 * (14773/33449), ymax = upper_90 * (14773/33449)), fill = "#a1d99b", alpha = 0.5) +
+  geom_line(data = subset(estimate, data == "f0" & variable == "R"), aes(y = median * (15000/3)), size = 0.5, col = "#de2d26", alpha = 0.5) +
+  geom_ribbon(data = subset(estimate, data == "f0" & variable == "R"), aes(x = date, ymin = lower_90 * (15000/3), ymax = upper_90 * (14773/3)), fill = "#fc9272", alpha = 0.5) +
+  geom_hline(yintercept = 1 * (15000/3), size = 1, linetype = 2) +
+  scale_y_continuous(name = "Số F0 theo ngày xét nghiệm", labels = comma,
+                     breaks = seq(from = 0, to = 15000, by = 2000),
+                     sec.axis = sec_axis(~ . /(15000/3),
+                                         name = "Hệ số lây nhiễm Rt", labels = comma,
+                                         breaks = seq(from = 0, to = 3, by = 0.5))) +
+  scale_x_date(name = "Ngày", breaks = "1 week") +
+  theme_bw() +
+  theme(legend.position = "none",
+        axis.text.x = element_text(angle = 90),
+        #plot.margin = unit(c(1, 4, 1, 1), "lines"),
+        panel.grid = element_blank(),
+        axis.text.y.right = element_text(color = "#de2d26"),
+        axis.title.y.right = element_text(color = "#de2d26")) +
+  theme(axis.title.x = element_blank(),
+        axis.text.x = element_blank(),
+        axis.ticks.x = element_blank())
+
+p2 <- ggplot(data = covid, aes(x = date)) +
+  annotate(geom = "rect",
+           xmin = date_start, xmax = date_parse("2021-07-07"),
+           ymin = -Inf, ymax = Inf, fill = "grey90") +
+  annotate(geom = "rect",
+           xmin = date_parse("2021-08-23"), xmax = date_parse("2021-09-30"),
+           ymin = -Inf, ymax = Inf, fill = "grey90") +
+  geom_bar(aes(y = doh_n_chuyenden), stat = "identity", fill = "#9ecae1", width = 1) +
+  geom_line(data = subset(estimate, data == "hos" & variable == "infections"), aes(y = median * (4500/12000)), size = 0.5, col = "#31a354", alpha = 0.5) +
+  geom_ribbon(data = subset(estimate, data == "hos" & variable == "infections"), aes(x = date, ymin = lower_90 * (4500/12000), ymax = upper_90 * (14773/33449)), fill = "#a1d99b", alpha = 0.5) +
+  geom_line(data = subset(estimate, data == "hos" & variable == "R"), aes(y = median * (4500/3)), size = 0.5, col = "#de2d26", alpha = 0.5) +
+  geom_ribbon(data = subset(estimate, data == "hos" & variable == "R"), aes(x = date, ymin = lower_90 * (4500/3), ymax = upper_90 * (4500/3)), fill = "#fc9272", alpha = 0.5) +
+  geom_hline(yintercept = 1 * (4500/3), size = 1, linetype = 2) +
+  scale_y_continuous(name = "Số F0 nhập viện tầng 2-3", labels = comma,
+                     breaks = seq(from = 0, to = 4500, by = 500),
+                     sec.axis = sec_axis(~ . /(4500/3),
+                                         name = "Hệ số lây nhiễm Rt", labels = comma,
+                                         breaks = seq(from = 0, to = 3, by = 0.5))) +
+  scale_x_date(name = "Ngày", breaks = "1 week") +
+  theme_bw() +
+  theme(legend.position = "none",
+        axis.text.x = element_text(angle = 90),
+        #plot.margin = unit(c(1, 4, 1, 1), "lines"),
+        panel.grid = element_blank(),
+        axis.text.y.right = element_text(color = "#de2d26"),
+        axis.title.y.right = element_text(color = "#de2d26")) +
+  theme(axis.title.x = element_blank(),
+        axis.text.x = element_blank(),
+        axis.ticks.x = element_blank())
+
+p3 <- ggplot(data = covid, aes(x = date)) +
+  annotate(geom = "rect",
+           xmin = date_start, xmax = date_parse("2021-07-07"),
+           ymin = -Inf, ymax = Inf, fill = "grey90") +
+  annotate(geom = "rect",
+           xmin = date_parse("2021-08-23"), xmax = date_parse("2021-09-30"),
+           ymin = -Inf, ymax = Inf, fill = "grey90") +
+  geom_bar(aes(y = doh_n_chuyenlen), stat = "identity", fill = "#9ecae1", width = 1) +
+  geom_line(data = subset(estimate, data == "refer" & variable == "infections"), aes(y = median * (300/700)), size = 0.5, col = "#31a354", alpha = 0.5) +
+  geom_ribbon(data = subset(estimate, data == "refer" & variable == "infections"), aes(x = date, ymin = lower_90 * (300/700), ymax = upper_90 * (300/700)), fill = "#a1d99b", alpha = 0.5) +
+  geom_line(data = subset(estimate, data == "refer" & variable == "R"), aes(y = median * (300/2)), size = 0.5, col = "#de2d26", alpha = 0.5) +
+  geom_ribbon(data = subset(estimate, data == "refer" & variable == "R"), aes(x = date, ymin = lower_90 * (300/2), ymax = upper_90 * (300/2)), fill = "#fc9272", alpha = 0.5) +
+  geom_hline(yintercept = 1 * (300/2), size = 1, linetype = 2) +
+  scale_y_continuous(name = "Số F0 chuyển tầng trên", labels = comma,
+                     breaks = seq(from = 0, to = 300, by = 50),
+                     sec.axis = sec_axis(~ . /(300/2),
+                                         name = "Hệ số lây nhiễm Rt", labels = comma,
+                                         breaks = seq(from = 0, to = 2, by = 0.5))) +
+  scale_x_date(name = "Ngày", breaks = "1 week") +
+  theme_bw() +
+  theme(legend.position = "none",
+        axis.text.x = element_text(angle = 90),
+        #plot.margin = unit(c(1, 4, 1, 1), "lines"),
+        panel.grid = element_blank(),
+        axis.text.y.right = element_text(color = "#de2d26"),
+        axis.title.y.right = element_text(color = "#de2d26")) +
+  theme(axis.title.x = element_blank(),
+        axis.text.x = element_blank(),
+        axis.ticks.x = element_blank())
+
+p4 <- ggplot(data = covid, aes(x = date)) +
+  annotate(geom = "rect",
+           xmin = date_start, xmax = date_parse("2021-07-07"),
+           ymin = -Inf, ymax = Inf, fill = "grey90") +
+  annotate(geom = "rect",
+           xmin = date_parse("2021-08-23"), xmax = date_parse("2021-09-30"),
+           ymin = -Inf, ymax = Inf, fill = "grey90") +
+  geom_bar(aes(y = doh_n_tuvong), stat = "identity", fill = "#9ecae1", width = 1) +
+  geom_line(data = subset(estimate, data == "death" & variable == "infections"), aes(y = median * (350/1000)), size = 0.5, col = "#31a354", alpha = 0.5) +
+  geom_ribbon(data = subset(estimate, data == "death" & variable == "infections"), aes(x = date, ymin = lower_90 * (350/1000), ymax = upper_90 * (350/1000)), fill = "#a1d99b", alpha = 0.5) +
+  geom_line(data = subset(estimate, data == "death" & variable == "R"), aes(y = median * (350/2.5)), size = 0.5, col = "#de2d26", alpha = 0.5) +
+  geom_ribbon(data = subset(estimate, data == "death" & variable == "R"), aes(x = date, ymin = lower_90 * (350/2.5), ymax = upper_90 * (350/2.5)), fill = "#fc9272", alpha = 0.5) +
+  geom_hline(yintercept = 1 * (350/2), size = 1, linetype = 2) +
+  scale_y_continuous(name = "Số F0 tử vong", labels = comma,
+                     breaks = seq(from = 0, to = 350, by = 50),
+                     sec.axis = sec_axis(~ . /(350/2.5),
+                                         name = "Hệ số lây nhiễm Rt", labels = comma,
+                                         breaks = seq(from = 0, to = 2.5, by = 0.5))) +
+  scale_x_date(name = "Ngày", breaks = "1 week") +
+  theme_bw() +
+  theme(legend.position = "none",
+        axis.text.x = element_text(angle = 90),
+        #plot.margin = unit(c(1, 4, 1, 1), "lines"),
+        panel.grid = element_blank(),
+        axis.text.y.right = element_text(color = "#de2d26"),
+        axis.title.y.right = element_text(color = "#de2d26"))
+
+p1 + p2 + p3 + p4 + plot_layout(ncol = 1, heights = c(1, 1, 1, 1))
+ggsave(filename = file.path("figures", "DichHCMC.png"), width = 10, height = 10)
