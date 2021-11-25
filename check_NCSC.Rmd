@@ -1,0 +1,160 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+data_path <- file.path(Lmisc::get.dropbox.folder(), "Workspace", "Database", "COVID19", "NCSC")
+```
+
+```{r}
+rawdata <- file.path(data_path, "raw")
+files <- paste0(rawdata, "/province_")
+indexes <- 1:64
+  
+### Loading the JSON files:
+provinces <- paste0(files, indexes) %>%
+  map(~ fromJSON(file = .x))
+
+### Extracting the provinces names and translating them into English:
+provinces_names <- provinces %>%
+  map_chr(extract2, "name") %>%
+  stri_trans_general("Latin-ASCII")
+
+### Selecting the time series variables:
+tmp <- provinces %>%
+  first() %>%
+  map_int(length)
+vars <- names(tmp[which(tmp > 1)])
+
+### Managing potential duplicated provinces:
+sel <- which(provinces_names == names(which(table(provinces_names) > 1)))
+provinces %<>% map(combine_var, vars, vars)
+if(length(sel)) {
+  if(all_identical(provinces[sel])) {
+    sel <- tail(sel, -1)
+    provinces <- provinces[-sel]
+    provinces_names <- provinces_names[-sel]
+  } else {
+    stop("error 1")
+  }
+}
+
+provinces %<>%
+  map2(provinces_names, add_col_var, "province") %>%
+  bind_rows() %>%
+  mutate_at("n", as.integer) %>%
+  arrange(date, province, var) %>%
+  select(date, province, var, n)
+```
+
+
+```{r}
+## Inspecting the data
+### A function that plot the cumulative sum of the `_by_day` version of a variable as a function of the `_by_time` version of the same variable:
+compare_day_time <- function(x) {
+  c1 <- paste0(x, "_by_day")
+  c2 <- paste0(x, "_by_time")
+
+  cum <- provinces %>%
+    filter(var == c1) %>%
+    group_by(date) %>%
+    summarise(n = sum(n)) %>%
+    mutate_at("n", cumsum)
+  bytime <- provinces %>%
+    filter(var == c2) %>%
+    group_by(date) %>%
+    summarise(n = sum(n))
+  plot(cum$n, bytime$n, xlab = paste0("cumsum(", c1, ")"), ylab = c2)
+  abline(0, 1)
+}
+
+### Making all the plots:
+vars %>%
+  str_remove("_by.*$") %>%
+  unique() %>%
+  walk(compare_day_time)
+
+### The `_by_time` variable is a `cumsum()` of the `by_day` variable for all the variables except `active` and `case_in_community`. Furthermore, `case_in_community_by_day` doesn't not exist and is just a duplicate of `case_in_blockade_by_day`:
+blockade <- provinces %>%
+  filter(var == "case_in_blockade_by_day") %>%
+  group_by(date) %>%
+  summarise(n = sum(n))
+
+community <- provinces %>%
+  filter(var == "case_in_community_by_day") %>%
+  group_by(date) %>%
+  summarise(n = sum(n))
+
+plot(community$n, blockade$n)
+abline(0, 1)
+
+### Total incidence:
+provinces %>%
+  filter(var == "case_by_day") %>%
+  pull(n) %>%
+  sum()
+
+### Current prevalence:
+provinces %>%
+  filter(var == "active_by_time") %>%
+  group_by(date) %>%
+  summarise(n = sum(n)) %>%
+  tail(10)
+
+### Total number of deaths:
+provinces %>%
+  filter(var == "death_by_time") %>%
+  group_by(date) %>%
+  mutate(n = abs(n)) %>%
+  summarise(n = sum(n)) %>%
+  tail()
+
+### Looking at the different sub-categories of incidences:
+lines2 <- function(x, y, d) {
+  d %>%
+    filter(var == x) %>%
+    group_by(date) %>%
+    summarise(n = sum(n)) %$%
+    lines(date, n, type = "l", col = y)
+}
+provinces %>%
+  filter(var == "case_by_time") %>%
+  group_by(date) %>%
+  summarise(n = sum(n)) %$%
+  plot(date, n, type = "l", xlim = c(ymd(20210701), ymd(20210910)))
+c("isolation", "community", "screening", "blockade") %>%
+  paste0("case_in_", ., "_by_time") %>%
+  walk2(2:5, lines2, provinces)
+
+### Verifying that 1 incidence variable is the sum of the 5 other ones:
+inc <- provinces %>%
+  filter(var %in% c("case_in_isolation_by_time", "case_in_community_by_time",
+                    "case_in_screening_by_time", "case_in_blockade_by_time",
+                    "another_case_by_time", "case_by_time")) %>%
+  pivot_wider(names_from = "var", values_from = "n", values_fill = 0) %>%
+  select(-province) %>%
+  group_by(date) %>%
+  summarise_all(sum) %>%
+  rename(cum_inc = case_by_time) %>%
+  mutate(total = select(., contains("case")) %>% rowSums())
+with(inc, plot(cum_inc, total))
+abline(0, 1)
+with(inc, {
+  plot(date, log10(cum_inc), type = "l", col = 2)
+  lines(date, log10(total), type = "l", col = 4)
+})
+abline(v = seq(ymd(20200101), ymd(20220101), "month"))
+
+# Conclusion: `case` is more or less the sum of the 5 following exclusive categories: `case_in_isolation`, `case_in_community`, `case_in_screening`, `case_in_blockade`, and `another_case`.
+
+### Verifying that all combination are unique:
+provinces %>%
+  group_by(date, province, var) %>%
+  tally() %>%
+  pull(n) %>%
+  table()
+
+
+```
+

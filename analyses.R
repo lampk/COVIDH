@@ -1014,6 +1014,37 @@ epinow_refer_est_sum <- rbind(
 )
 save(epinow_refer_est, epinow_refer_sum, epinow_refer_est_sum, file = file.path(data_path, "derived", paste0("epinow_refer_", timestamp, ".Rdata")))
 
+## theo quan huyen:
+hcdc_ca_loctrung <- readRDS(file.path(data_path, "save", "hcdc_ca_loctrung2.rds")) %>%
+  group_by(test_date_taken, quanhuyen, .drop = FALSE) %>%
+  summarise(confirm = n(),
+            .groups = "drop") %>%
+  rename(date = test_date_taken,
+         region = quanhuyen)
+tmp <- expand.grid(date = unique(hcdc_ca_loctrung$date),
+                   region = unique(hcdc_ca_loctrung$region))
+tmp2 <- merge(tmp, hcdc_ca_loctrung, by = c("date", "region"), all.x = TRUE) %>%
+  mutate(confirm = ifelse(is.na(confirm), 0, confirm))
+
+epinow_qh_est <- regional_epinow(
+  reported_cases = tmp2,
+  generation_time = generation_time,
+  delays = delay_opts(incubation_period, reporting_delay),
+  return_output = TRUE,
+  verbose = TRUE,
+  rt = NULL, backcalc = backcalc_opts(),
+  obs = obs_opts(scale = list(mean = 0.4, sd = 0.05)),
+  horizon = 0,
+  stan = stan_opts(samples = 2000, chains = 4, cores = 4)
+)
+
+epinow_qh_sum <- epinow_qh_est$summary$summarised_results$table
+epinow_qh_est_sum <- do.call(rbind,
+                             lapply(1:length(epinow_qh_est$regional), function(i){
+                               subset(epinow_qh_est$regional[[i]]$estimates$summarised, variable %in% c("R", "reported_cases", "growth_rate")) %>%
+                                 mutate(region = names(epinow_qh_est$regional[i]))
+                             }))
+save(epinow_qh_est, epinow_qh_sum, epinow_qh_est_sum, file = file.path("data", "HCDC", "database", "derived", paste0("epinow_qh_", timestamp, ".Rdata")))
 
 # plot --------------------------------------------------------------------
 
@@ -1209,3 +1240,18 @@ p4 <- ggplot(data = covid, aes(x = date)) +
 
 p1 + p2 + p3 + p4 + plot_layout(ncol = 1, heights = c(1, 1, 1, 1))
 ggsave(filename = file.path("figures", "DichHCMC.png"), width = 10, height = 10)
+
+# by district ------------------------------------------------------------------
+
+ggplot(data = tmp2, aes(x = date)) +
+  geom_bar(aes(y = confirm), stat = "identity", fill = "#9ecae1", width = 1) +
+  cale_x_date(name = "Ngày", breaks = "1 week") +
+  theme_bw() +
+  theme(legend.position = "none",
+        axis.text.x = element_text(angle = 90),
+        #plot.margin = unit(c(1, 4, 1, 1), "lines"),
+        panel.grid = element_blank(),
+        axis.text.y.right = element_text(color = "#de2d26"),
+        axis.title.y.right = element_text(color = "#de2d26"))
+
+
