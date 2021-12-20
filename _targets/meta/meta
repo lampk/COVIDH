@@ -1,6 +1,6 @@
 name|type|data|command|depend|seed|path|time|size|bytes|format|iteration|parent|children|seconds|warnings|error
 summ|function|725b50cbf04a3ed2||||||||||||||
-data_path|stem|598f60110547430f|670c328c05fe8606|9acbcfc91c542028|1349504789||t18980.8907133181s|9935591c0ed1d478|103|rds|vector|||1.035||
+ncsc_data_path|stem|4501d834c1bda39c|27ba191a6e6a5e84|72b6595a9eb3ea68|-1300012531|/Users/khanhlam/Dropbox/Workspace/Database/COVID19/NCSC|t18981.4006610555s|dd56a5971d025bfa|192|file|vector|||38.372||
 link_current_bctruc|function|51de3e1c669df309||||||||||||||
 bctruc_process2|function|ed8041575392527c||||||||||||||
 remove_dupfile|function|1e099e408a6d4b8b||||||||||||||
@@ -8,6 +8,7 @@ bctruc_url|object|d4d909dcffde5a44||||||||||||||
 get_case_bctruc_data|function|4d2775eb881ab5bd||||||||||||||
 ncsc_url|object|2b329d958d8a179f||||||||||||||
 ncsc_url_vaccine|object|9b2588b132d9e635||||||||||||||
+data_path|object|5b6a1ed78c6b721f||||||||||||||
 get_ncsc_data|function|ca3ef04eab31bcc9||||||||||||||
 case_url|object|8195802d7aa7a368||||||||||||||
 get_xn_file_latest|function|499ab124fcb066b9||||||||||||||
@@ -15,5 +16,4 @@ get_ma|function|8dffe508b87b38ae||||||||||||||
 bctruc_new|function|bf6ee8164361adb6||||||||||||||
 bctruc_split|function|bbf49ce496538ce8||||||||||||||
 mydaily2|function|02c2c711e8dcf738||||||||||||||
-ncsc_data_path|stem|638d1a3a2f163ba4|27ba191a6e6a5e84|a00870546a3c55ba|-1300012531|/Users/lamphung/Dropbox/Workspace/Database/COVID19/NCSC|t18981.3694537724s|3b473d03446354e1|87314458|file|vector|||40.326||
-bctruc_data|stem||346c1e85e6b29167|8dad401ea0524a67|1148616901||t18981.3592053527s||0|file|vector|||1.41||1m22mClient error 403 PERMISSION_DENIED Client does not have sufficient permission. This can happen because the OAuth  token does not have the right scopes, the client doesnt have permission, or  the API has not been enabled for the client project. Request had insufficient authentication scopes.
+bctruc_data|stem||346c1e85e6b29167|a7b0e2d5fc69479c|1148616901||t18981.3592053527s||0|file|vector|||||_build_ target bctruc_data did not return a character. dynamic files targets with format  file must return character vectors of file or directory paths.

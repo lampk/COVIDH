@@ -11,17 +11,13 @@ library(tarchetypes)
 # This is where you write source(\"R/functions.R\")
 # if you keep your functions in external scripts.
 source("R/functions.R")
-source(file.path(Lmisc::get.dropbox.folder(), "Workspace", "Database", "COVID19", "paths.R"))
+source(file.path(Lmisc::get.dropbox.folder(), "Workspace", "Database", "COVID19", "paths.R"), local = TRUE)
 
 # Set target-specific options such as packages.
 tar_option_set(packages = c("tidyverse", "Lmisc"))
 
 # End this file with a list of target objects.
 list(
-  ## set path
-  tar_target(name = data_path,
-             command = file.path(Lmisc::get.dropbox.folder(), "Workspace", "Database", "COVID19"),
-             format = "rds"),
   ## update data
   ### NCSC
   tar_target(name = ncsc_data_path,

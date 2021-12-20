@@ -51,7 +51,7 @@ get_ncsc_data <- function(url_case = "https://covid.ncsc.gov.vn/api/v3/covid/pro
       map_lgl(~ identical(x[.x[1]], x[.x[2]])) %>%
       all()
   }
- ### Save to disk in Excel, RDS and CSV formats
+  ### Save to disk in Excel, RDS and CSV formats
   save2disk <- function(x, file_name) {
     writexl::write_xlsx(x, file.path(cleandata, paste0(file_name, ".xlsx")))
     saveRDS(x, file.path(cleandata, paste0(file_name, ".rds")))
@@ -63,103 +63,103 @@ get_ncsc_data <- function(url_case = "https://covid.ncsc.gov.vn/api/v3/covid/pro
   indexes <- 1:64
 
   ## Downloading the files (takes about 30'):
-if(dir.exists(rawdata)) {
-  old_files <- paste0(rawdata, "0")
-  file.rename(rawdata, old_files)
-  dir.create(rawdata)
-  walk(indexes, ~ download.file(paste0(url_case, .x), paste0(files, .x)))
-  unlink(old_files, TRUE)
-} else {
-  dir.create(rawdata)
-  walk(indexes, ~ download.file(paste0(url_case, .x), paste0(files, .x)))
-}
-
-## Loading the files
-### Loading the JSON files:
-provinces <- paste0(files, indexes) %>%
-  map(~ fromJSON(file = .x))
-
-### Extracting the provinces names and translating them into English:
-provinces_names <- provinces %>%
-  map_chr(extract2, "name") %>%
-  stri_trans_general("Latin-ASCII")
-
-### Selecting the time series variables:
-tmp <- provinces %>%
-  first() %>%
-  map_int(length)
-vars <- names(tmp[which(tmp > 1)])
-
-### Managing potential duplicated provinces:
-sel <- which(provinces_names == names(which(table(provinces_names) > 1)))
-provinces %<>% map(combine_var, vars, vars)
-if(length(sel)) {
-  if(all_identical(provinces[sel])) {
-    sel <- tail(sel, -1)
-    provinces <- provinces[-sel]
-    provinces_names <- provinces_names[-sel]
+  if(dir.exists(rawdata)) {
+    old_files <- paste0(rawdata, "0")
+    file.rename(rawdata, old_files)
+    dir.create(rawdata)
+    walk(indexes, ~ download.file(paste0(url_case, .x), paste0(files, .x)))
+    unlink(old_files, TRUE)
   } else {
-    stop("error 1")
+    dir.create(rawdata)
+    walk(indexes, ~ download.file(paste0(url_case, .x), paste0(files, .x)))
   }
-}
 
-### Finalizing the formatting:
-provinces %<>%
-  map2(provinces_names, add_col_var, "province") %>%
-  bind_rows() %>%
-  mutate_at("n", as.integer) %>%
-  arrange(date, province, var) %>%
-  select(date, province, var, n)
+  ## Loading the files
+  ### Loading the JSON files:
+  provinces <- paste0(files, indexes) %>%
+    map(~ fromJSON(file = .x))
+
+  ### Extracting the provinces names and translating them into English:
+  provinces_names <- provinces %>%
+    map_chr(extract2, "name") %>%
+    stri_trans_general("Latin-ASCII")
+
+  ### Selecting the time series variables:
+  tmp <- provinces %>%
+    first() %>%
+    map_int(length)
+  vars <- names(tmp[which(tmp > 1)])
+
+  ### Managing potential duplicated provinces:
+  sel <- which(provinces_names == names(which(table(provinces_names) > 1)))
+  provinces %<>% map(combine_var, vars, vars)
+  if(length(sel)) {
+    if(all_identical(provinces[sel])) {
+      sel <- tail(sel, -1)
+      provinces <- provinces[-sel]
+      provinces_names <- provinces_names[-sel]
+    } else {
+      stop("error 1")
+    }
+  }
+
+  ### Finalizing the formatting:
+  provinces %<>%
+    map2(provinces_names, add_col_var, "province") %>%
+    bind_rows() %>%
+    mutate_at("n", as.integer) %>%
+    arrange(date, province, var) %>%
+    select(date, province, var, n)
 
 
-var2 <- c(
-  "case_by_day"               = "incidence",
-  "active_by_time"            = "prevalence",
-  "death_by_time"             = "cum_deaths",
-  "case_in_blockade_by_day"   = "incidence_blockade",
-  "case_in_isolation_by_day"  = "incidence_isolation",
-  "case_in_screening_by_day"  = "incidence_screening",
-  "another_case_by_day"       = "incidence_other",
-  "case_by_time"              = "cum_incidence",
-  "case_in_blockade_by_time"  = "cum_incidence_blockade",
-  "case_in_isolation_by_time" = "cum_incidence_isolation",
-  "case_in_screening_by_time" = "cum_incidence_screening",
-  "another_case_by_time"      = "cum_incidence_other",
-  "case_in_community_by_time" = "cum_incidence_community")
+  var2 <- c(
+    "case_by_day"               = "incidence",
+    "active_by_time"            = "prevalence",
+    "death_by_time"             = "cum_deaths",
+    "case_in_blockade_by_day"   = "incidence_blockade",
+    "case_in_isolation_by_day"  = "incidence_isolation",
+    "case_in_screening_by_day"  = "incidence_screening",
+    "another_case_by_day"       = "incidence_other",
+    "case_by_time"              = "cum_incidence",
+    "case_in_blockade_by_time"  = "cum_incidence_blockade",
+    "case_in_isolation_by_time" = "cum_incidence_isolation",
+    "case_in_screening_by_time" = "cum_incidence_screening",
+    "another_case_by_time"      = "cum_incidence_other",
+    "case_in_community_by_time" = "cum_incidence_community")
 
 
-## Writing clean data
-provinces %>%
-  filter(var %in% names(var2)) %>%
-  mutate(var = var2[var]) %>%
-  mutate_at("n", abs) %>% # incidence in HCMC on 2021-07-21 is equal to -167...
-  filter(date < max(date)) %>% # because the most recent day is likely to be incomplete
-  save2disk("covid")
+  ## Writing clean data
+  provinces %>%
+    filter(var %in% names(var2)) %>%
+    mutate(var = var2[var]) %>%
+    mutate_at("n", abs) %>% # incidence in HCMC on 2021-07-21 is equal to -167...
+    filter(date < max(date)) %>% # because the most recent day is likely to be incomplete
+    save2disk("covid")
 
-## Vaccine data
-### Downloading the file:
-download.file(url_vaccine, "vaccines.json")
+  ## Vaccine data
+  ### Downloading the file:
+  download.file(url_vaccine, "vaccines.json")
 
-### Reformating and writing the data:
-"vaccines.json" %>%
-  fromJSON(file = .) %>%
-  map(as.data.frame) %>%
-  bind_rows(.id = "date") %>%
-  as_tibble() %>%
-  mutate_at("date", dmy) %>%
-  mutate_at(vars(ends_with("ted")), as.integer) %>%
-  mutate_at("onceInjected", abs) %>%
-  save2disk("vaccines")
+  ### Reformating and writing the data:
+  "vaccines.json" %>%
+    fromJSON(file = .) %>%
+    map(as.data.frame) %>%
+    bind_rows(.id = "date") %>%
+    as_tibble() %>%
+    mutate_at("date", dmy) %>%
+    mutate_at(vars(ends_with("ted")), as.integer) %>%
+    mutate_at("onceInjected", abs) %>%
+    save2disk("vaccines")
 
-### backup
-datetime_update <- Sys.time()
-timestamp <- gsub(pattern = "-|:| |+", replacement = "", x = datetime_update)
-dir.create(file.path(backup, timestamp))
-file.copy(rawdata, file.path(backup, timestamp), recursive = TRUE)
-file.copy(cleandata, file.path(backup, timestamp), recursive = TRUE)
-file.remove("vaccines.json")
-### return path to NCSC data
-dirname(rawdata)
+  ### backup
+  datetime_update <- Sys.time()
+  timestamp <- gsub(pattern = "-|:| |+", replacement = "", x = datetime_update)
+  dir.create(file.path(backup, timestamp))
+  file.copy(rawdata, file.path(backup, timestamp), recursive = TRUE)
+  file.copy(cleandata, file.path(backup, timestamp), recursive = TRUE)
+  file.remove("vaccines.json")
+  ### return path to NCSC data
+  dirname(rawdata)
 }
 
 get_case_bctruc_data <- function(case_url,
