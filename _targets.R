@@ -10,15 +10,38 @@ library(tarchetypes)
 # Define custom functions and other global objects.
 # This is where you write source(\"R/functions.R\")
 # if you keep your functions in external scripts.
-summ <- function(dataset) {
-  summarize(dataset, mean_x = mean(x))
-}
+source("R/functions.R")
+source(file.path(Lmisc::get.dropbox.folder(), "Workspace", "Database", "COVID19", "paths.R"))
 
 # Set target-specific options such as packages.
-tar_option_set(packages = "dplyr")
+tar_option_set(packages = c("tidyverse", "Lmisc"))
 
 # End this file with a list of target objects.
 list(
-  tar_target(data, data.frame(x = sample.int(100), y = sample.int(100))),
-  tar_target(summary, summ(data)) # Call your custom functions as needed.
+  ## set path
+  tar_target(name = data_path,
+             command = file.path(Lmisc::get.dropbox.folder(), "Workspace", "Database", "COVID19"),
+             format = "rds"),
+  ## update data
+  ### NCSC
+  tar_target(name = ncsc_data_path,
+             command = get_ncsc_data(url = ncsc_url,
+                                     url_vaccine = ncsc_url_vaccine,
+                                     rawdata = file.path(data_path, "NCSC", "raw"),
+                                     cleandata = file.path(data_path, "NCSC", "clean"),
+                                     backup = file.path(data_path, "NCSC", "backup")),
+             format = "file"),
+  ### HCDC BC truc
+  tar_target(name = bctruc_data,
+             command = get_case_bctruc_data(case_url = case_url,
+                                            bctruc_url = bctruc_url,
+                                            download = "bctruc",
+                                            outdir = file.path(data_path, "HCDC", "daily"),
+                                            timestamp = gsub(pattern = "-|:| |+", replacement = "", x = Sys.time())),
+             format = "file")
+  ### HCDC CDS PCR
+  ### HCDC CDS Test nhanh
+  ### DOH tom tat
+  ### DOH chi tiet - BN
+  ### DOH chi tiet - tuvong
 )

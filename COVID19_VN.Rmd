@@ -1,0 +1,71 @@
+---
+title: "COVID Vietnam"
+output: html_notebook
+---
+
+```{r}
+knitr::opts_chunk$set(echo = FALSE)
+library(tidyverse)
+library(lubridate)
+library(gt)
+library(gtsummary)
+library(ggplot2)
+library(targets)
+```
+
+```{r}
+tar_load(ncsc_data_path)
+```
+
+```{r}
+today <- Sys.Date()
+```
+
+## cases
+
+```{r}
+cases <- readRDS(file = file.path(ncsc_data_path, "clean", "covid.rds"))
+```
+
+### prevalence
+
+```{r}
+ggplot(data = filter(cases, var == "prevalence"), aes(x = date, y = n)) +
+  geom_line() +
+  geom_vline(xintercept = today, color = "red") +
+  facet_wrap(~ province, scales = "free_y") +
+  theme_bw()
+```
+
+### incidence
+
+```{r}
+ggplot(data = filter(cases, var == "incidence"), aes(x = date, y = n)) +
+  geom_line() +
+  geom_vline(xintercept = today, color = "red") +
+  facet_wrap(~ province, scales = "free_y") +
+  theme_bw()
+```
+```{r}
+ggplot(data = filter(cases, var == "cum_incidence"), aes(x = date, y = n)) +
+  geom_line() +
+  geom_vline(xintercept = today, color = "red") +
+  facet_wrap(~ province, scales = "free_y") +
+  theme_bw()
+```
+
+### cum_deaths
+
+```{r}
+ggplot(data = filter(cases, var == "cum_deaths"), aes(x = date, y = n)) +
+  geom_line() +
+  geom_vline(xintercept = today, color = "red") +
+  facet_wrap(~ province, scales = "free_y") +
+  theme_bw()
+```
+
+## vaccines
+
+```{r}
+vaccines <- readRDS(file = file.path(ncsc_data_path, "clean", "vaccines.rds"))
+```

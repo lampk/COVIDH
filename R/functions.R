@@ -1,8 +1,9 @@
 
 # get data ----------------------------------------------------------------
 
-get_ncsc_data <- function(url_case = "https://covid.ncsc.gov.vn/api/v3/covid/province/", rawdata, cleandata,
-                          url_vaccine = "https://covid.ncsc.gov.vn/api/v3/vaccine/national_injected_by_day?filter_type=people") {
+get_ncsc_data <- function(url_case = "https://covid.ncsc.gov.vn/api/v3/covid/province/",
+                          url_vaccine = "https://covid.ncsc.gov.vn/api/v3/vaccine/national_injected_by_day?filter_type=people",
+                          rawdata, cleandata, backup) {
   ## Packages
   require(purrr)
   require(readr)
@@ -54,7 +55,6 @@ get_ncsc_data <- function(url_case = "https://covid.ncsc.gov.vn/api/v3/covid/pro
   save2disk <- function(x, file_name) {
     writexl::write_xlsx(x, file.path(cleandata, paste0(file_name, ".xlsx")))
     saveRDS(x, file.path(cleandata, paste0(file_name, ".rds")))
-    saveRDS(x, paste0(file_name, ".rds"))
     write.csv(x, file.path(cleandata, paste0(file_name, ".csv")), quote = FALSE, row.names = FALSE)
   }
 
@@ -151,6 +151,15 @@ download.file(url_vaccine, "vaccines.json")
   mutate_at("onceInjected", abs) %>%
   save2disk("vaccines")
 
+### backup
+datetime_update <- Sys.time()
+timestamp <- gsub(pattern = "-|:| |+", replacement = "", x = datetime_update)
+dir.create(file.path(backup, timestamp))
+file.copy(rawdata, file.path(backup, timestamp), recursive = TRUE)
+file.copy(cleandata, file.path(backup, timestamp), recursive = TRUE)
+file.remove("vaccines.json")
+### return path to NCSC data
+dirname(rawdata)
 }
 
 get_case_bctruc_data <- function(case_url,
@@ -164,7 +173,8 @@ get_case_bctruc_data <- function(case_url,
   require(readr)
 
   ## authorization
-  gs4_auth(email = "ncov2019tphcm@gmail.com")
+  #gs4_auth(email = "ncov2019tphcm@gmail.com")
+  gs4_auth()
 
   if (is.null(timestamp)) {
     ## get current datetime
