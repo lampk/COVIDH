@@ -24,7 +24,51 @@ today <- Sys.Date()
 ## cases
 
 ```{r}
-cases <- readRDS(file = file.path(ncsc_data_path, "clean", "covid.rds"))
+getAllMondays <- function(year) {
+  ## source: https://stackoverflow.com/questions/9166437/get-dates-of-a-certain-weekday-from-a-year-in-r
+    days <- as.POSIXlt(paste(year, 1:366, sep="-"), format="%Y-%j")
+    Ms <- days[days$wday==1]
+    Ms[!is.na(Ms)]  # Needed to remove NA from day 366 in non-leap years
+}
+
+
+
+epiweek_date <- rbind(
+  data.frame(epiweek = 1:53,
+             year = 2020,
+             date_first = ymd(getAllMondays(2020)))
+)
+```
+
+
+```{r}
+cases <- readRDS(file = file.path(ncsc_data_path, "clean", "covid.rds")) %>%
+  ## epidemiological week
+  mutate(epiweek = isoweek(date),
+         year = year(date))
+
+death <- cases %>%
+  filter(var == "cum_deaths") %>%
+  group_by(province) %>%
+  arrange(date) %>%
+  mutate(deaths = c(0, diff(n))) %>%
+  ungroup() %>%
+  mutate(var = "deaths",
+         n = deaths) %>%
+  select(-deaths)
+
+death2 <- death %>%
+  mutate(var = "deaths 2",
+         n = pmax(n, 0))
+  
+cases <- rbind(cases, death, death2) %>%
+  arrange(date, province)
+
+cases_week <- cases %>%
+  group_by(province, var, year, epiweek) %>%
+  summarise(n = sum(n),
+            .groups = "drop") %>%
+  ungroup()
 ```
 
 ### prevalence
@@ -58,6 +102,22 @@ ggplot(data = filter(cases, var == "cum_incidence"), aes(x = date, y = n)) +
 
 ```{r}
 ggplot(data = filter(cases, var == "cum_deaths"), aes(x = date, y = n)) +
+  geom_line() +
+  geom_vline(xintercept = today, color = "red") +
+  facet_wrap(~ province, scales = "free_y") +
+  theme_bw()
+```
+
+```{r}
+ggplot(data = filter(cases, var == "deaths"), aes(x = date, y = n)) +
+  geom_line() +
+  geom_vline(xintercept = today, color = "red") +
+  facet_wrap(~ province, scales = "free_y") +
+  theme_bw()
+```
+
+```{r}
+ggplot(data = filter(cases, var == "deaths 2"), aes(x = date, y = n)) +
   geom_line() +
   geom_vline(xintercept = today, color = "red") +
   facet_wrap(~ province, scales = "free_y") +

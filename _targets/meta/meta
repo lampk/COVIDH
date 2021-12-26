@@ -1,19 +1,21 @@
 name|type|data|command|depend|seed|path|time|size|bytes|format|iteration|parent|children|seconds|warnings|error
 summ|function|725b50cbf04a3ed2||||||||||||||
-ncsc_data_path|stem|4501d834c1bda39c|27ba191a6e6a5e84|72b6595a9eb3ea68|-1300012531|/Users/khanhlam/Dropbox/Workspace/Database/COVID19/NCSC|t18981.4006610555s|dd56a5971d025bfa|192|file|vector|||38.372||
+ncsc_data_path|stem|a2008419d6769dfe|27ba191a6e6a5e84|e4b10b2efc7466c4|-1300012531|/Users/lamphung/Dropbox/Workspace/Database/COVID19/NCSC|t18984.8937571992s|590648b814112c0b|137402784|file|vector|||51.039||
 link_current_bctruc|function|51de3e1c669df309||||||||||||||
 bctruc_process2|function|ed8041575392527c||||||||||||||
 remove_dupfile|function|1e099e408a6d4b8b||||||||||||||
 bctruc_url|object|d4d909dcffde5a44||||||||||||||
-get_case_bctruc_data|function|4d2775eb881ab5bd||||||||||||||
+get_case_bctruc_data|function|674c85d2dcb6bed8||||||||||||||
 ncsc_url|object|2b329d958d8a179f||||||||||||||
+today_timestamp|object|82c0f27b8a27b9e4||||||||||||||
 ncsc_url_vaccine|object|9b2588b132d9e635||||||||||||||
-data_path|object|5b6a1ed78c6b721f||||||||||||||
-get_ncsc_data|function|ca3ef04eab31bcc9||||||||||||||
+data_path|object|cb5602660fa0b414||||||||||||||
+get_ncsc_data|function|5c91c75a0b753ca3||||||||||||||
 case_url|object|8195802d7aa7a368||||||||||||||
 get_xn_file_latest|function|499ab124fcb066b9||||||||||||||
 get_ma|function|8dffe508b87b38ae||||||||||||||
 bctruc_new|function|bf6ee8164361adb6||||||||||||||
 bctruc_split|function|bbf49ce496538ce8||||||||||||||
-mydaily2|function|02c2c711e8dcf738||||||||||||||
-bctruc_data|stem||346c1e85e6b29167|a7b0e2d5fc69479c|1148616901||t18981.3592053527s||0|file|vector|||||_build_ target bctruc_data did not return a character. dynamic files targets with format  file must return character vectors of file or directory paths.
+mydaily2|function|6c4f41e199d29d3e||||||||||||||
+ncsc_covid|stem|c35f053604b449eb|b3c660dfa3609102|f01e57c28c557c17|1785152578|/Users/lamphung/Dropbox/Workspace/Database/COVID19/NCSC/clean/covid.rds|t18984.9015835922s|3947dd480bf7200d|133117|file|vector|||0.01||
+bctruc_data|stem|c378fcf6e2f7a0c6|f392050471272739|7f6b60264adb6e4b|1148616901|/Users/lamphung/Dropbox/Workspace/Database/COVID19/HCDC/daily/bctruc/combine/HCDCdata_BCTRUC_20211224043732.rds|t18984.9036160377s|34154c9721702c66|1776487|file|vector|||0.001||

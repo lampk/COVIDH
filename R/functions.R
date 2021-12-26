@@ -158,8 +158,7 @@ get_ncsc_data <- function(url_case = "https://covid.ncsc.gov.vn/api/v3/covid/pro
   file.copy(rawdata, file.path(backup, timestamp), recursive = TRUE)
   file.copy(cleandata, file.path(backup, timestamp), recursive = TRUE)
   file.remove("vaccines.json")
-  ### return path to NCSC data
-  dirname(rawdata)
+
 }
 
 get_case_bctruc_data <- function(case_url,
@@ -173,8 +172,8 @@ get_case_bctruc_data <- function(case_url,
   require(readr)
 
   ## authorization
-  #gs4_auth(email = "ncov2019tphcm@gmail.com")
-  gs4_auth()
+  gs4_auth(email = "ncov2019tphcm@gmail.com")
+  #gs4_auth()
 
   if (is.null(timestamp)) {
     ## get current datetime
