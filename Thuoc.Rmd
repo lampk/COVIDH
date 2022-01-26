@@ -12,7 +12,7 @@ library(writexl)
 library(readxl)
 
 data_path <- file.path(Lmisc::get.dropbox.folder(), "Workspace", "Database", "COVID19", "DOH", "nvduoc", "data")
-today <- ymd("2022-01-22")
+today <- ymd("2022-01-26")
 today2 <- gsub(pattern = "-", x = today, replacement = "")
 
 ## TTYT
