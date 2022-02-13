@@ -264,6 +264,8 @@ saveRDS(xn_chitiet, file = file.path(data_path, "VAD", "xn_chitiet.rds"))
 #with(xn_chitiet, table(test_reason, test_place))
 ```
 
+#### XN tong 
+
 ```{r}
 ## xn_tong
 xn_tong_newest <- subset(sum_current_file_latest, source == "tong")
@@ -388,6 +390,26 @@ pcr <- merge(pcr1, pcr2, by = c("test_date_taken", "source")) %>% rename(date = 
 
 saveRDS(pcr, file = file.path(data_path, "VAD", "pcr.rds"))
 saveRDS(xn, file = file.path(data_path, "VAD", "xn.rds"))
+```
+
+```{r}
+ggplot(data = subset(pcr, date >= ymd("2021-07-01") & date <= ymd("2021-07-30")), aes(x = date, y = hcdc_n_pcr_nguoi, group = source, fill = source)) +
+  geom_bar(stat = "identity") +
+  theme_bw()
+```
+#### Test nhanh
+
+```{r}
+testnhanh_newest <- subset(sum_current_file_latest, source == "testnhanh")
+testnhanh <- NULL
+
+for (i in c(1:nrow(testnhanh_newest))) {
+  cat(i, "/", nrow(testnhanh_newest), "\n")
+  xni <- janitor::clean_names(data.table(read_excel(path = testnhanh_newest$path[i], skip = 3, col_types = "text")))
+  xni$file <- testnhanh_newest$name[i]
+  testnhanh <- rbind(testnhanh, xni, fill = TRUE)
+}
+saveRDS(testnhanh, file = file.path(data_path, "VAD", "testnhanh_raw.rds"))
 ```
 
 
