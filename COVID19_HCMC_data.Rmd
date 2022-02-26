@@ -101,7 +101,7 @@ tamsoat_khambenh <- c("TAM SOAT NGUOI DEN KHAM BENH, SU DUNG DICH VU Y TE (KHAN 
                       "TAM SOAT NGUOI DEN KHAM BENH, SU DUNG DICH VU Y TE",
                       "TAM SOAT NGUOI DEN KHAM BENH", "SANG LOC KHAM BENH",
                       "SANG LOC KHAM BENH (KHAN CAP)", "DOI TUONG CO TRIEU CHUNG TAI CO SO KHAM CHUA BENH")
-tamsoat_nguyco_ratcao <- c("TAM SOAT NGUOI NGUY CO RAT CAO (#F1 GAN)", "TAM SOAT NGUOI NGUY CO RAT CAO (#F1 GAN) (KHAN CAP)")
+tamsoat_nguyco_ratcao <- c("TAM SOAT NGUOI NGUY CO RAT CAO (#F1 GAN)", "TAM SOAT NGUOI NGUY CO RAT CAO (#F1 GAN) (KHAN CAP)", "TAM SOAT NGUOI NGUY CO RAT CAO (#F1)", "NGHI NGO NHIEM COVID-19")
 tamsoat_nguyco_cao <- c("TAM SOAT NGUOI NGUY CO CAO (#F1 XA)", "TAM SOAT NGUOI NGUY CO CAO (#F1 XA) (KHAN CAP)")
 tamsoat_nguyco_cao_bv <- c("DOI TUONG NGUY CO CAO TAI CO SO KHAM CHUA BENH" )
 tamsoat_nguyco_cao_congdong <- c("DOI TUONG NGUY CO CAO TRONG CONG DONG")
@@ -111,11 +111,13 @@ dieutra_dich <- c("DIEU TRA DICH", "DOI TUONG DIEU TRA DICH", "DIEU TRA DICH (KH
 kiemdich <- c("KIEM DICH", "DOI TUONG KIEM DICH")
 kiemdich_trongnuoc <- c("KIEM DICH NGUOI VE TU VUNG DICH TRONG NUOC", "KIEM DICH NGUOI VE TU VUNG DICH TRONG NUOC (THUONG QUY)")
 kiemdich_ngoainuoc <- c("KIEM DICH NGUOI VE TU NUOC NGOAI", "KIEM DICH NGUOI VE TU NUOC NGOAI (THUONG QUY)")
-giamsat_congdong <- c("GIAM SAT CONG DONG (THUONG QUY)", "GIAM SAT CONG DONG")
-giamsat_bv <- c("GIAM SAT THUONG QUY TAI BV", "GIAM SAT THUONG QUY", "GIAM SAT THUONG QUY (THUONG QUY)")
+giamsat_congdong <- c("GIAM SAT CONG DONG (THUONG QUY)", "GIAM SAT CONG DONG", "TAM SOAT CONG DONG")
+giamsat_trongdiem <- c("GIAM SAT TRONG DIEM")
+giamsat_bv <- c("GIAM SAT THUONG QUY TAI BV", "GIAM SAT THUONG QUY", "GIAM SAT THUONG QUY (THUONG QUY)", "GIAM SAT DINH KY")
 theo_yeucau <- c("THEO YEU CAU")
 xetnghiemlai <- c("XET NGHIEM LAI")
 sau_cltt <- c("SAU CACH LY TAP TRUNG")
+theodoi_f0 <- c("XET NGHIEM THEO DOI F0")
 theodoi_f0_csyt <- c("XET NGHIEM THEO DOI F0 TAI CO SO Y TE", "XET NGHIEM THEO DOI F0 TAI CO SO Y TE (THUONG QUY)")
 theodoi_f0_nha <- c("XET NGHIEM THEO DOI F0 TAI NHA", "XET NGHIEM THEO DOI F0 TAI NHA (THUONG QUY)")
 theodoi_f0_saudieutri <- c("XET NGHIEM THEO DOI F0 SAU DIEU TRI (THUONG QUY)", "SAU DIEU TRI", "XET NGHIEM THEO DOI F0 SAU DIEU TRI")
@@ -149,6 +151,7 @@ for (i in c(1:nrow(xn_chitiet_newest))) {
 }
 
 saveRDS(xnchitiet, file = file.path(data_path, "VAD", "xnchitiet_raw.rds"))
+xnchitiet <- readRDS(file.path(data_path, "VAD", "xnchitiet_raw.rds"))
 
 xn_chitiet <- data.table(xnchitiet %>%
                            select(-thoi_gian_co_ket_qua_theo_he_thong, -orf1ab) %>%
@@ -222,11 +225,12 @@ xn_chitiet <- data.table(xnchitiet %>%
                                     test_reason %in% dieutra_dich ~ "09. DIEU TRA DICH",
                                     test_reason %in% c(kiemdich, kiemdich_trongnuoc, kiemdich_ngoainuoc) ~ "10. KIEM DICH",
                                     test_reason %in% c(giamsat_congdong) ~ "11. GIAM SAT CONG DONG",
-                                    test_reason %in% giamsat_bv ~ "12. GIAM SAT BV",
-                                    test_reason %in% theo_yeucau ~ "13. THEO YEU CAU",
-                                    test_reason %in% xetnghiemlai ~ "14. XET NGHIEM LAI",
-                                    test_reason %in% c(sau_cltt, theodoi_f0_csyt, theodoi_f0_nha, theodoi_f0_saudieutri, theodoi_khac) ~ "15. THEO DOI KHAC",
-                                    test_reason %in% khac ~ "16. KHAC",
+                                    test_reason %in% c(giamsat_trongdiem) ~ "12. GIAM SAT TRONG DIEM",
+                                    test_reason %in% giamsat_bv ~ "13. GIAM SAT BV",
+                                    test_reason %in% theo_yeucau ~ "14. THEO YEU CAU",
+                                    test_reason %in% xetnghiemlai ~ "15. XET NGHIEM LAI",
+                                    test_reason %in% c(sau_cltt, theodoi_f0, theodoi_f0_csyt, theodoi_f0_nha, theodoi_f0_saudieutri, theodoi_khac) ~ "16. THEO DOI",
+                                    test_reason %in% khac ~ "17. KHAC",
                                     TRUE ~ as.character(test_reason)
                                   ),
                                   
@@ -239,23 +243,28 @@ xn_chitiet <- data.table(xnchitiet %>%
                                     TRUE ~ "KHONG RO"
                                   ),
                                   
-                                  test_place = case_when(
-                                    is.na(noi_lay_mau) ~ NA_character_,
-                                    noi_lay_mau %in% c("PHIÊN XÉT NGHIỆM MẪU") ~ NA_character_,
-                                    noi_lay_mau %in% c("1. NƠI ĐIỀU TRỊ NGƯỜI BỆNH COVID") ~ "01. NƠI ĐIỀU TRỊ NGƯỜI BỆNH COVID",
-                                    noi_lay_mau %in% c("2. CƠ SỞ Y TẾ KHÔNG ĐIỀU TRỊ COVID") ~ "02. CƠ SỞ Y TẾ KHÔNG ĐIỀU TRỊ COVID",
-                                    noi_lay_mau %in% c("3. KHU CÁCH LY") ~ "03. KHU CÁCH LY",
-                                    noi_lay_mau %in% c("4. KHU PHONG TỎA") ~ "04. KHU PHONG TỎA",
-                                    noi_lay_mau %in% c("5. CƠ SỞ SẢN XUẤT") ~ "05. CƠ SỞ SẢN XUẤT",
-                                    noi_lay_mau %in% c("6. TRỤ SỞ LÀM VIỆC") ~ "06. TRỤ SỞ LÀM VIỆC",
-                                    noi_lay_mau %in% c("7. CỘNG ĐỒNG") ~ "07. CỘNG ĐỒNG",
-                                    noi_lay_mau %in% c("8. TẠI NHÀ") ~ "08. TẠI NHÀ",
-                                    noi_lay_mau %in% c("9. VÙNG XANH") ~ "09. VÙNG XANH",
-                                    noi_lay_mau %in% c("10. VÙNG CẬN XANH") ~ "10. VÙNG CẬN XANH",
-                                    noi_lay_mau %in% c("11. VÙNG VÀNG") ~ "11. VÙNG VÀNG",
-                                    noi_lay_mau %in% c("12. VÙNG CAM") ~ "12. VÙNG CAM",
-                                    noi_lay_mau %in% c("13. VÙNG ĐỎ") ~ "13. VÙNG ĐỎ", 
-                                    TRUE ~ "14. KHAC"
+                                  test_place = toupper(stringi::stri_trans_general(str = noi_lay_mau,  id = "Latin-ASCII")),
+                                  test_place2 = case_when(
+                                    is.na(test_place) ~ NA_character_,
+                                    test_place %in% c("PHIEN XET NGHIEM MAU") ~ NA_character_,
+                                    grepl(pattern = "NOI DIEU TRI NGUOI BENH COVID|BENH VIEN DIEU TRI COVID|KHU CACH LY DIEU TRI F0", x = test_place) ~ "01. NƠI ĐIỀU TRỊ NGƯỜI BỆNH COVID",
+                                    grepl(pattern = "CO SO Y TE KHONG DIEU TRI COVID", x = test_place) ~ "02. CƠ SỞ Y TẾ KHÔNG ĐIỀU TRỊ COVID",
+                                    grepl(pattern = "KHU CACH LY", x = test_place) ~ "03. KHU CÁCH LY",
+                                    grepl(pattern = "KHU PHONG TOA", x = test_place) ~ "04. KHU PHONG TỎA",
+                                    grepl(pattern = "KCN, KCX, KHU CONG NGHE CAO, CSSX/KD|KCN, KCX, KHU CONG NGHE CAO, CSSX/KD|CO SO SAN XUAT", x = test_place) ~ "05. CƠ SỞ SẢN XUẤT",
+                                    grepl(pattern = "CO QUAN HANH CHINH, CONG SO|CO QUAN HANH CHINH, CONG SO|TRU SO LAM VIEC", x = test_place) ~ "06. CÔNG SỞ",
+                                    grepl(pattern = "CONG DONG", x = test_place) ~ "07. CỘNG ĐỒNG",
+                                    grepl(pattern = "DON VI THUONG XUYEN LUU TRU DONG NGUOI|DON VI THUONG XUYEN LUU TRU DONG NGUOI", x = test_place) ~ "08. NƠI LƯU TRÚ ĐÔNG NGƯỜI", 
+                                    grepl(pattern = "CHO, SIEU THI, CUA HANG TIEN LOI|CHO, SIEU THI, CUA HANG TIEN LOI", x = test_place) ~ "09. CHỢ, SIÊU THỊ",
+                                    grepl(pattern = "SAN BAY, BEN XE, BEN TAU, GA DUONG SAT|SAN BAY, BEN XE, BEN TAU, GA DUONG SAT", x = test_place) ~ "10. SÂN BAY, BẾN XE, GA",
+                                    grepl(pattern = "TRUONG HOC", x = test_place) ~ "11. TRƯỜNG HỌC", 
+                                    grepl(pattern = "TAI NHA", x = test_place) ~ "12. TẠI NHÀ",
+                                    grepl(pattern = "VUNG XANH", x = test_place) ~ "13. VÙNG XANH",
+                                    grepl(pattern = "VUNG CAN XANH", x = test_place) ~ "14. VÙNG CẬN XANH",
+                                    grepl(pattern = "VUNG VANG", x = test_place) ~ "15. VÙNG VÀNG",
+                                    grepl(pattern = "VUNG CAM", x = test_place) ~ "16. VÙNG CAM",
+                                    grepl(pattern = "VUNG DO", x = test_place) ~ "17. VÙNG ĐỎ", 
+                                    TRUE ~ "18. KHAC"
                                   )
                            ))
 
@@ -279,6 +288,7 @@ for (i in c(1:nrow(xn_tong_newest))) {
 }
 saveRDS(xntong, file = file.path(data_path, "VAD", "xntong_raw.rds"))
 
+xntong <- readRDS(file.path(data_path, "VAD", "xntong_raw.rds"))
 xn_tong <- data.table(xntong %>%
                            mutate_all(.funs = toupper) %>%
                            rowwise() %>%
@@ -350,13 +360,15 @@ xn_tong <- data.table(xntong %>%
                                     test_reason %in% dieutra_dich ~ "09. DIEU TRA DICH",
                                     test_reason %in% c(kiemdich, kiemdich_trongnuoc, kiemdich_ngoainuoc) ~ "10. KIEM DICH",
                                     test_reason %in% c(giamsat_congdong) ~ "11. GIAM SAT CONG DONG",
-                                    test_reason %in% giamsat_bv ~ "12. GIAM SAT BV",
-                                    test_reason %in% theo_yeucau ~ "13. THEO YEU CAU",
-                                    test_reason %in% xetnghiemlai ~ "14. XET NGHIEM LAI",
-                                    test_reason %in% c(sau_cltt, theodoi_f0_csyt, theodoi_f0_nha, theodoi_f0_saudieutri, theodoi_khac) ~ "15. THEO DOI KHAC",
-                                    test_reason %in% khac ~ "16. KHAC",
+                                    test_reason %in% c(giamsat_trongdiem) ~ "12. GIAM SAT TRONG DIEM",
+                                    test_reason %in% giamsat_bv ~ "13. GIAM SAT BV",
+                                    test_reason %in% theo_yeucau ~ "14. THEO YEU CAU",
+                                    test_reason %in% xetnghiemlai ~ "15. XET NGHIEM LAI",
+                                    test_reason %in% c(sau_cltt, theodoi_f0, theodoi_f0_csyt, theodoi_f0_nha, theodoi_f0_saudieutri, theodoi_khac) ~ "16. THEO DOI",
+                                    test_reason %in% khac ~ "17. KHAC",
                                     TRUE ~ as.character(test_reason)
                                   ),
+                                  
                                   test_type = case_when(
                                     is.na(ky_thuat_xn) ~ "MISSING",
                                     (ky_thuat_xn %in% c("11-08-2021", "14-08-2021")) | (grepl(pattern = "COUNTIF|PCR|U07T|VLOOKUP", x = ky_thuat_xn)) ~ "PCR",
@@ -374,29 +386,74 @@ saveRDS(xn_tong, file = file.path(data_path, "VAD", "xn_tong.rds"))
 ```
 
 ```{r}
+xn_tong <- readRDS(file.path(data_path, "VAD", "xn_tong.rds"))
+xn_chitiet <- readRDS(file.path(data_path, "VAD", "xn_chitiet.rds"))
+
 xn <- rbindlist(list(xn_tong[, source := "tong"], 
                      xn_chitiet[, source := "chitiet"]), 
                 fill = TRUE)
 
-pcr1 <- xn[test_type == "PCR" & (loai_mau_xn == "MẪU ĐƠN" | (loai_mau_xn == "MẪU GỘP" & test_result == "AM TINH")) & !test_reason %in% c("XET NGHIEM THEO DOI F0 TAI CO SO Y TE", "XET NGHIEM THEO DOI TRUONG HOP KHAC", "XET NGHIEM THEO DOI F0 SAU DIEU TRI", "XET NGHIEM THEO DOI F0 TAI NHA", "SAU DIEU TRI"),
-          .(hcdc_n_pcr_nguoi = sum(so_nguoi)), by = c("test_date_taken", "source")
+pcr1 <- xn[test_type == "PCR" & (loai_mau_xn == "MẪU ĐƠN" | (loai_mau_xn == "MẪU GỘP" & test_result == "AM TINH")) & !test_reason2 %in% c("16. THEO DOI"),
+          .(n_pcr_nguoi = sum(so_nguoi),
+            n_pos_nguoi = sum(test_result == "DUONG TINH")), 
+          by = c("test_date_taken", "source")
 ]
 
-pcr2 <- xn[test_type == "PCR" & !test_reason %in% c("XET NGHIEM THEO DOI F0 TAI CO SO Y TE", "XET NGHIEM THEO DOI TRUONG HOP KHAC", "XET NGHIEM THEO DOI F0 SAU DIEU TRI", "XET NGHIEM THEO DOI F0 TAI NHA", "SAU DIEU TRI"),
-           .(hcdc_n_pcr_test = length(unique(ma_xn))), by = c("test_date_taken", "source")
+pcr2 <- xn[test_type == "PCR" & !test_reason %in% c("16. THEO DOI"),
+           .(n_pcr_test = length(unique(ma_xn)),
+             n_pos_test = sum(test_result == "DUONG TINH")), 
+           by = c("test_date_taken", "source")
 ]
 
 pcr <- merge(pcr1, pcr2, by = c("test_date_taken", "source")) %>% rename(date = test_date_taken)
+pcr_final <- rbind(
+  pcr %>% 
+    filter(source == "chitiet" & !date %in% ymd(c("2021-07-09", "2021-07-10", "2021-07-11", "2021-07-12", "2021-07-13", "2021-07-14", "2021-07-15"))),
+  pcr %>% 
+    filter(source == "tong" & date %in% ymd(c("2021-07-09", "2021-07-10", "2021-07-11", "2021-07-12", "2021-07-13", "2021-07-14", "2021-07-15")))
+)
 
 saveRDS(pcr, file = file.path(data_path, "VAD", "pcr.rds"))
+saveRDS(pcr_final, file = file.path(data_path, "VAD", "pcr_final.rds"))
 saveRDS(xn, file = file.path(data_path, "VAD", "xn.rds"))
 ```
 
 ```{r}
-ggplot(data = subset(pcr, date >= ymd("2021-07-01") & date <= ymd("2021-07-30")), aes(x = date, y = hcdc_n_pcr_nguoi, group = source, fill = source)) +
-  geom_bar(stat = "identity") +
+ggplot(data = pcr, aes(x = date, y = n_pcr_nguoi, group = source, color = source)) +
+  geom_line() +
+  theme_bw()
+
+ggplot(data = subset(pcr, date >= ymd("2021-06-01") & date <= ymd("2021-08-01")), aes(x = date, y = n_pcr_nguoi, group = source, color = source)) +
+  geom_line() +
+  theme_bw()
+
+ggplot(data = pcr, aes(x = date, y = n_pos_nguoi, group = source, color = source)) +
+  geom_line() +
+  theme_bw()
+
+ggplot(data = subset(pcr, date >= ymd("2021-06-01") & date <= ymd("2021-08-01")), aes(x = date, y = n_pos_nguoi, group = source, color = source)) +
+  geom_line() +
   theme_bw()
 ```
+
+```{r}
+tmp <- xn[test_type == "PCR" & (loai_mau_xn == "MẪU ĐƠN" | (loai_mau_xn == "MẪU GỘP" & test_result == "AM TINH")) & !test_reason2 %in% c("16. THEO DOI"),
+          .(n_don = sum(so_nguoi[loai_mau_xn == "MẪU ĐƠN"]),
+            n_gop = sum(so_nguoi[loai_mau_xn == "MẪU GỘP"]),
+            n_don_duong = sum(so_nguoi[loai_mau_xn == "MẪU ĐƠN" & test_result == "DUONG TINH"]),
+            n_don_am = sum(so_nguoi[loai_mau_xn == "MẪU ĐƠN" & test_result == "AM TINH"])), 
+          by = c("test_date_taken", "source")
+]
+
+ggplot(data = subset(tmp, test_date_taken >= ymd("2021-07-01") & test_date_taken <= ymd("2021-07-30")), aes(x = test_date_taken, y = n_don, group = source, color = source)) +
+  geom_line() +
+  theme_bw()
+
+ggplot(data = subset(tmp, test_date_taken >= ymd("2021-07-01") & test_date_taken <= ymd("2021-07-30")), aes(x = test_date_taken, y = n_gop, group = source, color = source)) +
+  geom_line() +
+  theme_bw()
+```
+
 #### Test nhanh
 
 ```{r}
@@ -410,6 +467,123 @@ for (i in c(1:nrow(testnhanh_newest))) {
   testnhanh <- rbind(testnhanh, xni, fill = TRUE)
 }
 saveRDS(testnhanh, file = file.path(data_path, "VAD", "testnhanh_raw.rds"))
+testnhanh <- readRDS(file.path(data_path, "VAD", "testnhanh_raw.rds"))
+
+xn_testnhanh <- data.table(testnhanh %>%
+                           mutate_all(.funs = toupper) %>%
+                           rename(ho_va_ten = ho_ten,
+                                  so_nha = so_nha_ten_duong,
+                                  phuong_xa = phuong_xa_thi_tran,
+                                  quan_huyen = quan_huyen_tp_tx,
+                                  tinh_thanh = tinh_thanh_pho,
+                                  ly_do_xn = ly_do,
+                                  noi_lay_mau = noi_lay_mau_test_nhanh_loai_hinh,
+                                  don_vi_lay_mau = co_so_thuc_hien,
+                                  ket_qua = ket_qua_test_nhanh,
+                                  thoi_gian_lay_mau = ngay_lay_mau_test_nhanh,
+                                  thoi_gian_ghi_nhan = ngay_he_thong_ghi_nhan)  %>%
+                           mutate(hcm = ifelse(is.na(tinh_thanh), 2,
+                                               ifelse(tinh_thanh == "THÀNH PHỐ HỒ CHÍ MINH", 1, 0)),
+                                  quanhuyen = case_when(
+                                    hcm == 2 ~ "0. KHONG BIET",
+                                    hcm == 0 ~ "0. NGOAI TPHCM",
+                                    is.na(quan_huyen) ~ "0. KHONG BIET",
+                                    quan_huyen %in% c("QUẬN 01", "QUẬN 1") ~ "QUẬN 01",
+                                    quan_huyen %in% c("QUẬN 03", "QUẬN 3") ~ "QUẬN 03",
+                                    quan_huyen %in% c("QUẬN 04", "QUẬN 4") ~ "QUẬN 04",
+                                    quan_huyen %in% c("QUẬN 05", "QUẬN 5") ~ "QUẬN 05",
+                                    quan_huyen %in% c("QUẬN 06", "QUẬN 6") ~ "QUẬN 06",
+                                    quan_huyen %in% c("QUẬN 07", "QUẬN 7") ~ "QUẬN 07",
+                                    quan_huyen %in% c("QUẬN 08", "QUẬN 8") ~ "QUẬN 08",
+                                    quan_huyen %in% c("QUẬN 02", "QUẬN 2", "QUẬN 09", "QUẬN 9", "QUẬN THỦ ĐỨC", "THÀNH PHỐ THỦ ĐỨC") ~ "THÀNH PHỐ THỦ ĐỨC",
+                                    quan_huyen %in% c("HUYỆN BÌNH CHÁNH", "HUYỆN CẦN GIỜ", "HUYỆN CỦ CHI", "HUYỆN HÓC MÔN", "HUYỆN NHÀ BÈ", "QUẬN BÌNH TÂN", "QUẬN BÌNH THẠNH", "QUẬN GÒ VẤP", "QUẬN PHÚ NHUẬN", "QUẬN TÂN BÌNH", "QUẬN TÂN PHÚ") ~ as.character(quan_huyen),
+                                    TRUE ~ "0. KHONG BIET"
+                                  ),
+                                  namsinh = as.numeric(ifelse(is.na(nam_sinh), NA,
+                                                   ifelse(grepl(pattern = "/", x = nam_sinh), substr(x = nam_sinh, start = 7, stop = 10), 
+                                                          ifelse(as.numeric(nam_sinh) <= 1871 | as.numeric(nam_sinh) > 2021, NA, nam_sinh)))),
+                                  tuoi = 2021 - namsinh,
+                                  nhomtuoi = cut(tuoi, breaks = c(seq(0, 85, 5), 150), right = FALSE,
+                                                 labels = c("0-4", "5-9", "10-14", "15-19", "20-24", "25-29", "30-34", "35-39", "40-44", "45-49", "50-54", "55-59", "60-64", "65-69", "70-74", "75-79", "80-84", "85+")),
+                                  nhomtuoi2 = ifelse(is.na(nhomtuoi), "MISSING", as.character(nhomtuoi)),
+                                  gioi = gioi_tinh_nu_nam,
+                                  tuoi_gioi = case_when(
+                                    is.na(gioi) | is.na(tuoi) ~ NA_character_,
+                                    gioi == "NAM" & tuoi <= 14 ~ "NAM 0-14",
+                                    gioi == "NAM" & tuoi > 14 & tuoi <= 24 ~ "NAM 15-24",
+                                    gioi == "NAM" & tuoi > 24 & tuoi <= 44 ~ "NAM 25-44",
+                                    gioi == "NAM" & tuoi > 44 & tuoi <= 59 ~ "NAM 45-59",
+                                    gioi == "NAM" & tuoi > 59 ~ "NAM 60+",
+                                    gioi == "NỮ" & tuoi <= 14 ~ "NỮ 0-14",
+                                    gioi == "NỮ" & tuoi > 14 & tuoi <= 24 ~ "NỮ 15-24",
+                                    gioi == "NỮ" & tuoi > 24 & tuoi <= 44 ~ "NỮ 25-44",
+                                    gioi == "NỮ" & tuoi > 44 & tuoi <= 59 ~ "NỮ 45-59",
+                                    gioi == "NỮ" & tuoi > 59 ~ "NỮ 60+",
+                                    TRUE ~ NA_character_
+                                  ),
+                                  test_datetime_taken = dmy_hm(paste(substr(x = thoi_gian_lay_mau, start = 7, stop = 16), substr(x = thoi_gian_lay_mau, start = 1, stop = 5)) , tz = "Asia/Ho_Chi_Minh"),
+                                  test_date_taken = date(test_datetime_taken),
+                                  test_datetime_result = dmy_hm(paste(substr(x = thoi_gian_ghi_nhan, start = 7, stop = 16), substr(x = thoi_gian_ghi_nhan, start = 1, stop = 5)), tz = "Asia/Ho_Chi_Minh"),
+                                  test_date_result = date(test_datetime_result),
+                                  test_result = case_when(
+                                    is.na(ket_qua) ~ "CHUA XAC DINH",
+                                    grepl(pattern = "DƯƠNG", x = ket_qua) ~ "DUONG TINH",
+                                    grepl(pattern = "ÂM", x = ket_qua) ~ "AM TINH",
+                                    grepl(pattern = "XÁC ĐỊNH", x = ket_qua) ~ "CHUA XAC DINH",
+                                    grepl(pattern = "LẤY MẪU LẠI|MẪU KHÔNG ĐẠT|NGHI NGỜ", x = ket_qua) ~ "KHONG DAT",
+                                    TRUE ~ "KHAC"
+                                  ),
+                            
+                                  test_reason = toupper(stringi::stri_trans_general(str = ly_do_xn,  id = "Latin-ASCII")),
+                                  test_reason2 = case_when(
+                                    is.na(test_reason) ~ "MISSING",
+                                    test_reason %in% maugop_duong ~ "01. MAU GOP DUONG",
+                                    test_reason %in% testnhanh_duong ~ "02. TEST NHANH DUONG",
+                                    test_reason %in% tamsoat_csyt ~ "03. TAM SOAT CSYT",
+                                    test_reason %in% tamsoat_khambenh ~ "04. TAM SOAT KHAM BENH",
+                                    test_reason %in% tamsoat_nguyco_ratcao ~ "05. TAM SOAT NGUY CO RAT CAO",
+                                    test_reason %in% c(tamsoat_nguyco_cao, tamsoat_nguyco_cao_bv, tamsoat_nguyco_cao_congdong) ~ "06. TAM SOAT NGUY CO CAO",
+                                    test_reason %in% tamsoat_nguyco ~ "07. TAM SOAT NGUY CO",
+                                    test_reason %in% tamsoat_vhh ~ "08. TAM SOAT VHH",
+                                    test_reason %in% dieutra_dich ~ "09. DIEU TRA DICH",
+                                    test_reason %in% c(kiemdich, kiemdich_trongnuoc, kiemdich_ngoainuoc) ~ "10. KIEM DICH",
+                                    test_reason %in% c(giamsat_congdong) ~ "11. GIAM SAT CONG DONG",
+                                    test_reason %in% c(giamsat_trongdiem) ~ "12. GIAM SAT TRONG DIEM",
+                                    test_reason %in% giamsat_bv ~ "13. GIAM SAT BV",
+                                    test_reason %in% theo_yeucau ~ "14. THEO YEU CAU",
+                                    test_reason %in% xetnghiemlai ~ "15. XET NGHIEM LAI",
+                                    test_reason %in% c(sau_cltt, theodoi_f0, theodoi_f0_csyt, theodoi_f0_nha, theodoi_f0_saudieutri, theodoi_khac) ~ "16. THEO DOI",
+                                    test_reason %in% khac ~ "17. KHAC",
+                                    TRUE ~ as.character(test_reason)
+                                  ),
+                                  
+                                  test_type = "TEST NHANH",
+                                  
+                                  test_place = toupper(stringi::stri_trans_general(str = noi_lay_mau,  id = "Latin-ASCII")),
+                                  test_place2 = case_when(
+                                    is.na(test_place) ~ NA_character_,
+                                    test_place %in% c("PHIEN XET NGHIEM MAU") ~ NA_character_,
+                                    grepl(pattern = "NOI DIEU TRI NGUOI BENH COVID|BENH VIEN DIEU TRI COVID|KHU CACH LY DIEU TRI F0", x = test_place) ~ "01. NƠI ĐIỀU TRỊ NGƯỜI BỆNH COVID",
+                                    grepl(pattern = "CO SO Y TE KHONG DIEU TRI COVID", x = test_place) ~ "02. CƠ SỞ Y TẾ KHÔNG ĐIỀU TRỊ COVID",
+                                    grepl(pattern = "KHU CACH LY", x = test_place) ~ "03. KHU CÁCH LY",
+                                    grepl(pattern = "KHU PHONG TOA", x = test_place) ~ "04. KHU PHONG TỎA",
+                                    grepl(pattern = "KCN, KCX, KHU CONG NGHE CAO, CSSX/KD|KCN, KCX, KHU CONG NGHE CAO, CSSX/KD|CO SO SAN XUAT", x = test_place) ~ "05. CƠ SỞ SẢN XUẤT",
+                                    grepl(pattern = "CO QUAN HANH CHINH, CONG SO|CO QUAN HANH CHINH, CONG SO|TRU SO LAM VIEC", x = test_place) ~ "06. CÔNG SỞ",
+                                    grepl(pattern = "CONG DONG", x = test_place) ~ "07. CỘNG ĐỒNG",
+                                    grepl(pattern = "DON VI THUONG XUYEN LUU TRU DONG NGUOI|DON VI THUONG XUYEN LUU TRU DONG NGUOI", x = test_place) ~ "08. NƠI LƯU TRÚ ĐÔNG NGƯỜI", 
+                                    grepl(pattern = "CHO, SIEU THI, CUA HANG TIEN LOI|CHO, SIEU THI, CUA HANG TIEN LOI", x = test_place) ~ "09. CHỢ, SIÊU THỊ",
+                                    grepl(pattern = "SAN BAY, BEN XE, BEN TAU, GA DUONG SAT|SAN BAY, BEN XE, BEN TAU, GA DUONG SAT", x = test_place) ~ "10. SÂN BAY, BẾN XE, GA",
+                                    grepl(pattern = "TRUONG HOC", x = test_place) ~ "11. TRƯỜNG HỌC", 
+                                    grepl(pattern = "TAI NHA", x = test_place) ~ "12. TẠI NHÀ",
+                                    grepl(pattern = "VUNG XANH", x = test_place) ~ "13. VÙNG XANH",
+                                    grepl(pattern = "VUNG CAN XANH", x = test_place) ~ "14. VÙNG CẬN XANH",
+                                    grepl(pattern = "VUNG VANG", x = test_place) ~ "15. VÙNG VÀNG",
+                                    grepl(pattern = "VUNG CAM", x = test_place) ~ "16. VÙNG CAM",
+                                    grepl(pattern = "VUNG DO", x = test_place) ~ "17. VÙNG ĐỎ", 
+                                    TRUE ~ "18. KHAC"
+                                  )
+                           ))
+saveRDS(xn_testnhanh, file = file.path(data_path, "VAD", "xn_testnhanh.rds"))
 ```
 
 
