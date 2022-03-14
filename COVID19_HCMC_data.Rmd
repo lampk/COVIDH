@@ -410,6 +410,8 @@ for (i in c(1:nrow(testnhanh_newest))) {
   testnhanh <- rbind(testnhanh, xni, fill = TRUE)
 }
 saveRDS(testnhanh, file = file.path(data_path, "VAD", "testnhanh_raw.rds"))
+
+testnhanh <- readRDS(file.path(data_path, "VAD", "testnhanh_raw.rds"))
 ```
 
 
