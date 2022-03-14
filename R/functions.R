@@ -785,3 +785,58 @@ get_ma <- function(data, datevar = "date_report_final", t = 7, type = c("mean", 
 
   return(output)
 }
+
+
+# get files ---------------------------------------------------------------
+
+find_allfiles <- function(folder_name, folder_id, data) {
+  tmp <- scope <- subset(data, parent == folder_id) %>%
+    mutate(path = folder_name)
+
+  while (any(scope$folder == 1)) {
+    folder <- scope[scope$folder == 1, ]
+    tmpi <- do.call("rbind",
+                    lapply(1:nrow(folder), function(i) {
+                      output <- gd_info[gd_info$parent == folder$id[i], ]
+                      if (nrow(output) > 0) {
+                        output$path <- file.path(folder$path[1], folder$name[i])
+                      } else {
+                        output <- NULL
+                      }
+
+                      return(output)
+                    }))
+    tmpii <- tmpi[!is.na(tmpi$id), ]
+    tmp <- rbind(tmp, tmpii)
+    scope <- tmpii
+  }
+
+  tmp1 <- tmp %>%
+    mutate(type = ifelse(mimeType %in% c("application/vnd.google-apps.document", "application/msword", "application/vnd.oasis.opendocument.text", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"), "word",
+                         ifelse(mimeType %in% c("application/vnd.google-apps.spreadsheet", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"), "spreadsheet", "other"))) %>%
+    filter(type %in% c("spreadsheet", "word")) %>%
+    dplyr::select(id, name, mimeType, type, createdTime, modifiedTime, version, path)
+
+  return(tmp1)
+}
+
+get_currentfile <- function(path, pattern) {
+  currentfile <- gsub(pattern = "(.*)\\..*$", replacement = "\\1", list.files(path = path, pattern = "file"))
+  current <- do.call("rbind",
+                     lapply(currentfile, function(x){
+                       tmp <- gsub(pattern = pattern, replacement = "", x = x)
+                       m <- nchar(tmp)
+                       datetime_import <- substr(tmp, start = m - 13, stop = m)
+                       data.frame(id = gsub(pattern = paste0("_", datetime_import), replacement = "", x = tmp),
+                                  datetime_import = date_time_parse(datetime_import,
+                                                                    format = "%Y%m%d%H%M%S", zone = Sys.timezone()),
+                                  fullname = x)
+                     })) %>%
+    group_by(id) %>%
+    arrange(desc(datetime_import)) %>%
+    slice(1) %>%
+    ungroup()
+
+  return(current)
+
+}
