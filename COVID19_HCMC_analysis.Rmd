@@ -1,0 +1,309 @@
+---
+title: "COVID19_HCMC_analysis"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+
+## library 
+library(tidyverse)
+library(lubridate)
+library(clock)
+library(gt)
+library(gtsummary)
+library(ggplot2)
+library(targets)
+library(data.table)
+library(readxl)
+library(Hmisc)
+
+data_path <- file.path(Lmisc::get.dropbox.folder(), "Workspace", "Database", "COVID19")
+data_ll <- file.path(data_path, "HCDC", "final", "final_linelist_20211028111619.rds")
+data_daily <- file.path(data_path, "HCDC", "daily", "all")
+```
+
+## Contact tracing data
+
+```{r}
+linelist <- readRDS(file = data_ll)
+linelist_data <- data.table(linelist$data)
+```
+
+### Check data availability
+
+Variables:
+
+* cluster
+* f_to0
+* case0
+* case_direct
+* contact_lastdate
+
+```{r}
+data_ct_check <- linelist_data[,
+                               .(
+                                 n = nrow(),
+                                 n_cluster = sum(!is.na(cluster)),
+                                 n_case0 = sum(!is.na(case0)),
+                                 n_f_to0 = sum(!is.na(f_to0)),
+                                 n_case_direct = sum(!is.na(case_direct)),
+                                 n_contact_lastdate = sum(!is.na(contact_lastdate))
+                               ),
+                               by = date_report_final] 
+
+tmp_ct <- linelist_data[, .(
+  n = .N,
+  n_cluster = sum(!is.na(cluster)),
+  n_case0 = sum(!is.na(case0)),
+  n_f_to0 = sum(!is.na(f_to0)),
+  n_case_direct = sum(!is.na(case_direct)),
+  n_contact_lastdate = sum(!is.na(contact_lastdate))), 
+  by = date_report_final
+  ]
+
+ggplot(data = tmp_ct, aes(x = date_report_final)) +
+  geom_bar(aes(y = n), stat = "identity", width = 1, fill = "grey") +
+  geom_line(aes(y = n_cluster), color = "blue") +
+  geom_line(aes(y = n_case0), color = "red") +
+  geom_line(aes(y = n_f_to0), color = "green") +
+  geom_line(aes(y = n_case_direct), color = "orange") +
+  geom_line(aes(y = n_contact_lastdate), color = "yellow") +
+  theme_bw()
+```
+* Choose data up to
+
+```{r}
+## get most up-to-date detailed info
+gd_info <- readRDS(file = file.path(data_daily, sort(list.files(path = data_daily, pattern = "[.]rds"), decreasing = TRUE)[1]))
+current <- get_currentfile(path = data_daily, pattern = "file_")
+
+## find excel files in "CA COVID-19 & DS TIẾP XÚC"/"CA BỆNH TỪ 27-04-21 ĐẾN 25-05-21"
+ct_0427_0525 <- find_allfiles(folder_name = "CA BỆNH TỪ 27-04-21 ĐẾN 25-05-21", folder_id = "1pB0EZil-J1hQCpAyL5SpdpivYtHK4A18", data = gd_info)
+ct_0427_0525_spreadsheet <- merge(ct_0427_0525 %>%
+                                    filter(type == "spreadsheet"), 
+                                  current, by = "id", all.x = TRUE) %>%
+  filter(!is.na(datetime_import))
+
+## find excel files in "CA COVID-19 & DS TIẾP XÚC"/"CHÙM CA HỘI THÁNH TIN LÀNH TỪ 26/05/21"
+ct_0526 <- find_allfiles(folder_name = "CHÙM CA HỘI THÁNH TIN LÀNH TỪ 26/05/21", folder_id = "14v-hzRhUJzYmqQNaqiEml7gq_iRN608q", data = gd_info)
+ct_0526_spreadsheet <- merge(ct_0526 %>%
+                                    filter(type == "spreadsheet"), 
+                                  current, by = "id", all.x = TRUE) %>%
+  filter(!is.na(datetime_import))
+
+## combine
+ct_ss <- rbind(ct_0427_0525_spreadsheet, ct_0526_spreadsheet) %>%
+  mutate(BN = grepl(pattern = "^BN", x = name))
+ct_ss_final <- filter(ct_ss, BN == TRUE)
+
+## import excel files
+contact <- place <- vector("list", nrow(ct_ss_final))
+m <- nrow(ct_ss_final)
+for (i in c(1:m)) {
+  cat("\r", i, "/", m)
+  sheets <- tryCatch(excel_sheets(path = file.path(data_daily, paste(ct_ss_final$fullname[i], "xlsx", sep = "."))), error = function(e) NA)
+  
+  if (!"1_Mốc dịch tễ" %in% sheets) {
+    place[[i]] <- contact[[i]] <- NULL
+  } else {
+    placei <- suppressWarnings(suppressMessages(read_excel(path = file.path(data_daily, paste(ct_ss_final$fullname[i], "xlsx", sep = ".")), sheet = "1_Mốc dịch tễ", skip = 1, col_types = "text")))
+  contacti <- suppressWarnings(suppressMessages(read_excel(path = file.path(data_daily, paste(ct_ss_final$fullname[i], "xlsx", sep = ".")), sheet = "2_Tiếp xúc F1", skip = 0, col_types = "text")))
+  placei$file <- contacti$file <- ct_ss_final$fullname[i]
+  placei$filename <- contacti$filename <- ct_ss_final$name[i]
+  place[[i]] <- placei
+  contact[[i]] <- contacti
+  }
+}
+
+
+
+idx_null <- unlist(lapply(place, function(x) is.null(x)))
+place <- place[which(idx_null == FALSE)]
+idx_null <- unlist(lapply(contact, function(x) is.null(x)))
+contact <- contact[which(idx_null == FALSE)]
+
+saveRDS(place, file = file.path(data_path, "VAD", "place.rds"))
+saveRDS(contact, file = file.path(data_path, "VAD", "contact.rds"))
+
+### check variable names
+#### place
+place_var <- NULL
+for (i in c(1:m)) {
+  place_var <- unique(c(names(place[[i]]), place_var))
+}
+
+place_var_info <- data.frame(
+  org = place_var,
+  mod = c("stt", "quocgia_phathien", "tinhthanh_cungu", "quanhuyen_cungu", "maquocgia", "hoten", 
+          "mocdt_ngayden", "mocdt_ngaydi", "mocdt_tgden", "mocdt_tgdi", "lydo_den", "mocdt_loaihinh", 
+          "mocdt_ten", "mocdt_tangphong_khoaphong_ghe_toa", "mocdt_diachi", "mocdt_tinhthanh", "mocdt_quanhuyen", "mocdt_phuongxa", 
+          "mocdt_ngayghinhan", "ghichu", "nguoiphutrach", "file", "filename",
+          "var02", "var03", "var04", "var05", "var06",
+          "stt", "quocgia_phathien", "tinhthanh_cungu", "quanhuyen_cungu", "maquocgia", "hoten", 
+          "mocdt_ngayden", "mocdt_ngaydi", "mocdt_tgden", "mocdt_tgdi", "mocdt_loaihinh", 
+          "mocdt_ten", "mocdt_tangphong_khoaphong_ghe_toa", "mocdt_diachi", "mocdt_tinhthanh", "mocdt_quanhuyen", "mocdt_phuongxa")
+)
+#### contact
+contact_var <- NULL
+for (i in c(1:m)) {
+  contact_var <- unique(c(names(contact[[i]]), contact_var))
+}
+
+contact_var_info <- data.frame(
+  org = contact_var,
+  mod = c("tt", "maquocgia_f0", "diadiemtx_f0", "ngaytxcuoi_f0", "loaitx_f0", "quanhe_f0", 
+          "hoten_f1", "hoten_f2", "fnamsinh", "fgioitinh", "fquoctich", "fhochieu", "fdienthoai", "femail", "fnghenghiep", 
+          "flamviec_diachi", "flamviec_thapday", "flamviec_tang", "flamviec_phong", "flamviec_tinh", "flamviec_quanhuyen", "flamviec_phuongxa", "fghe",
+          "fcutru_diachi", "fcutru_thapday", "fcutru_tang", "fcutru_phong", "fcutru_tinh", "fcutru_quanhuyen", "fcutru_phuongxa",
+          "fcachly_hinhthuc", "fcachly_tinh", "fcachly_quanhuyen", "fcachly_khu", "fcachly_ngay",
+          "fmau_lan1", "fmau_lan1_donvilay", "fmau_lan1_donvixn", "fmau_lan1_ngaylay", "fmau_lan1_ketqua", "fmau_lan1_ngayketqua",
+          "fmau_lan2", "fmau_lan2_donvilay", "fmau_lan2_donvixn", "fmau_lan2_ngaylay", "fmau_lan2_ketqua", "fmau_lan2_ngayketqua",
+          "fmau_lan3", "fmau_lan3_donvilay", "fmau_lan3_donvixn", "fmau_lan3_ngaylay", "fmau_lan3_ketqua", "fmau_lan3_ngayketqua",
+          "fmau_lan4", "fmau_lan4_donvilay", "fmau_lan4_donvixn", "fmau_lan4_ngaylay", "fmau_lan4_ketqua", "fmau_lan4_ngayketqua",
+          "fmau_lan5", "fmau_lan5_donvilay", "fmau_lan5_donvixn", "fmau_lan5_ngaylay", "fmau_lan5_ketqua", "fmau_lan5_ngayketqua",
+          "kq_xacminh", "ghichu", "ngay_xnkt", "kq_xnkt", "file", "filename", "var01", "var02", "var03", "var04", "var05", "stt", "var06", "var07")
+)
+
+
+### combind files
+#### place
+place <- readRDS(file.path(data_path, "VAD", "place.rds"))
+for (i in c(1:length(place))) {
+    m <- ncol(place[[i]])
+    ## rename
+    names(place[[i]]) <- place_var_info$mod[match(x = names(place[[i]]), table = place_var_info$org)]
+    ## create new columns
+    needvar <- unique(place_var_info$mod[! place_var_info$mod %in% names(place[[i]])])
+    if (length(needvar) > 0) {
+      place[[i]][, needvar] <- NA
+    }
+}
+
+# tmp <- do.call("rbind", lapply(place, function(x) {data.frame(n = nrow(x), n_stt = sum(!is.na(x$stt)), n_hoten = sum(!is.na(x$hoten)))}))
+
+place_comb <- do.call("rbind", arg = place)
+place_final <- data.table(place_comb)[!is.na(stt)]
+place_final$hoten <- toupper(place_final$hoten)
+place_final$mocdt_ngayden <- gsub(pattern = "/0201|/0221|/0202", replacement = "/2021", x = place_final$mocdt_ngayden)
+place_final$mocdt_ngayden[!is.na(place_final$mocdt_ngayden) & place_final$mocdt_ngayden %in% c("2.1958898E7")] <- NA
+place_final$mocdt_ngayden[!is.na(place_final$mocdt_ngayden) & place_final$mocdt_ngayden %in% c("6684464.0")] <- "09/06/2021"
+place_final$mocdt_ngayden[!is.na(place_final$mocdt_ngayden) & place_final$mocdt_ngayden %in% c("6690281.0")] <- "13/05/2021"
+place_final$mocdt_ngayden[!is.na(place_final$mocdt_ngayden) & place_final$mocdt_ngayden %in% c("6684442.0")] <- "18/05/2021"
+
+place_final$mocdt_ngayden <- with(
+  place_final,
+  ymd(ifelse(is.na(mocdt_ngayden), NA,
+         ifelse(grepl(pattern = "/", x = mocdt_ngayden) == FALSE, as.character(as.Date(as.numeric(mocdt_ngayden), origin = "1899-12-30")), as.character(dmy(mocdt_ngayden)))))
+)
+
+saveRDS(place_final, file = file.path(data_path, "VAD", "place_final.rds"))
+
+#### contact
+contact <- readRDS(file.path(data_path, "VAD", "contact.rds"))
+for (i in c(1:length(contact))) {
+    m <- ncol(contact[[i]])
+    ## rename
+    names(contact[[i]]) <- contact_var_info$mod[match(x = names(contact[[i]]), table = contact_var_info$org)]
+    ## create new columns
+    needvar <- unique(contact_var_info$mod[! contact_var_info$mod %in% names(contact[[i]])])
+    if (length(needvar) > 0) {
+      contact[[i]][, needvar] <- NA
+    }
+}
+contact_comb <- do.call("rbind", arg = contact)
+contact_final <- data.table(contact_comb)[!is.na(tt)]
+saveRDS(contact_final, file = file.path(data_path, "VAD", "contact_final.rds"))
+
+## find word files in "CA COVID-19 & DS TIẾP XÚC"/"CHÙM CA HỘI THÁNH TIN LÀNH TỪ 26/05/21"/"BÁO CÁO FILE WORD"
+### find all files inside "BÁO CÁO FILE WORD"
+pathlevel <- "BÁO CÁO FILE WORD"
+tmp <- scope <- subset(gd_info, parent == "1BW9zoPQ_iHdRj44RIVPA4yV4aQwrNAo2") %>%
+  mutate(path = pathlevel)
+
+while (any(scope$folder == 1)) {
+  folder <- scope[scope$folder == 1, ]
+  tmpi <- do.call("rbind",
+                  lapply(1:nrow(folder), function(i) {
+                    output <- gd_info[gd_info$parent == folder$id[i], ]
+                    if (nrow(output) > 0) {
+                      output$path <- file.path(folder$path[1], folder$name[i])
+                    } else {
+                      output <- NULL
+                    }
+
+                    return(output)
+                     }))
+  tmpii <- tmpi[!is.na(tmpi$id), ]
+  tmp <- rbind(tmp, tmpii)
+  scope <- tmpii
+}
+
+tmp1 <- tmp %>%
+  mutate(type = ifelse(mimeType %in% c("application/vnd.google-apps.document", "application/msword", "application/vnd.oasis.opendocument.text", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"), "word",
+                       ifelse(mimeType %in% c("application/vnd.google-apps.spreadsheet", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"), "spreadsheet", "other"))) %>%
+  filter(type %in% c("spreadsheet", "word")) %>%
+  dplyr::select(id, name, type, createdTime, modifiedTime, version, path)
+
+info <- merge(tmp1, current, by = "id", all.x = TRUE) %>%
+  filter(!is.na(datetime_import))
+
+## import word files
+
+words <- filter(info, type == "word")
+i <- 1
+library(officer)
+doc <- read_docx(path = file.path(data_path, paste0(words$fullname[i], ".docx")))
+doc_sum <- docx_summary(doc)
+ttcb_start <- grep(pattern = "thông tin ca bệnh", x = tolower(doc_sum$text))
+ttcb_stop <- grep(pattern = "các hoạt động đã triển khai", x = tolower(doc_sum$text))
+if (length(ttcb_start) > 1) {
+  ttcb_stop <- c(ttcb_start[-1], ttcb_stop)
+}
+
+ngaynhantt
+hoten
+gioitinh
+namsinh
+quoctich
+cmnd
+diachi
+diachi_lamviec
+sdt
+tongiao
+xetnghiem
+cachly
+nhandinh
+cungnha
+lichsudilai
+benhnen
+trieuchung
+
+for (j in c(1:length(ttcb_start))) {
+  bnj <- doc_sum$text[ttcb_start[j]:ttcb_stop[j]]
+  mucid <- c(grep(pattern = "nhận thông tin lúc", x = tolower(bnj)),
+             grep(pattern = "bệnh nhân:", x = tolower(bnj)),
+             grep(pattern = "địa chỉ:", x = tolower(bnj)),
+             grep(pattern = "địa chỉ nơi làm việc", x = tolower(bnj)),
+             grep(pattern = "số điện thoại:", x = tolower(bnj)),
+             grep(pattern = "tôn giáo:", x = tolower(bnj)),
+             grep(pattern = "ngày lấy mẫu xét nghiệm:", x = tolower(bnj)),
+             grep(pattern = "đang được cách ly", x = tolower(bnj)),
+             grep(pattern = "nhận định ca bệnh", x = tolower(bnj)),
+             grep(pattern = "bn sống cùng nhà: ", x = tolower(bnj)),
+             grep(pattern = "lịch sử đi lại:", x = tolower(bnj)),
+             grep(pattern = "tiền sử bệnh nền:", x = tolower(bnj)),
+             grep(pattern = "triệu chứng, ngày khởi phát:", x = tolower(bnj)))
+
+  ngaynhantt <- bnj[grep(pattern = "nhận thông tin lúc", x = tolower(bnj))]
+  bn <- strsplit(bnj[grep(pattern = "bệnh nhân:", x = tolower(bnj))], split = ", ")[[1]]
+  hoten <- toupper(gsub(pattern = "Bệnh nhân: |\\s*\\([^\\)]+\\)", replacement = "", bn[1]))
+  msbn <- regmatches(bn[1], gregexpr("(?<=\\().*?(?=\\))", bn[1], perl=T))[[1]]
+  gioitinh <- toupper(bn[2])
+
+}
+
+```
+
+
+
